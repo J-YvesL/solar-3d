@@ -54,4 +54,20 @@ describe("bodies data", () => {
       ).toBe(true);
     }
   });
+
+  it("14c: every body has poleEclipticLonDeg in [0, 360), Table 6 spot checks", () => {
+    const byId = new Map(BODIES.map((b) => [b.id, b]));
+    for (const body of BODIES) {
+      expect(
+        body.poleEclipticLonDeg >= 0 && body.poleEclipticLonDeg < 360,
+        `poleEclipticLonDeg out of range for ${body.id}: ${body.poleEclipticLonDeg}`,
+      ).toBe(true);
+    }
+    expect(byId.get("earth")?.poleEclipticLonDeg).toBe(90);
+    expect(byId.get("venus")?.poleEclipticLonDeg).toBe(210.19);
+    expect(byId.get("uranus")?.poleEclipticLonDeg).toBe(77.65);
+    for (const moon of BODIES.filter((b) => b.type === "moon")) {
+      expect(moon.poleEclipticLonDeg, `poleEclipticLonDeg must be 0 for ${moon.id}`).toBe(0);
+    }
+  });
 });

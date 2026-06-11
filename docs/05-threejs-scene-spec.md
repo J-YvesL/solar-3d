@@ -25,7 +25,13 @@ camera.position.set(0, 160, 320);   // initial system view, looking at origin
   y = 0
   ```
 - Orbital inclination: rotate the **orbit group** `group.rotation.x = degToRad(inclinationDeg)`. (We ignore the node longitude Ω — documented simplification. Triton's 157° automatically yields a retrograde-looking orbit.)
-- Axial tilt: `tiltGroup.rotation.z = degToRad(axialTiltDeg)`; spin: `mesh.rotation.y = degToRad(rotationAngleDeg)` on the mesh *inside* the tilt group. (Real pole azimuth ignored — simplification.)
+- Axial tilt — magnitude **and** direction (S16). A bare `rotation.z` tilt leans the pole toward scene azimuth 180° (−X); the pole must instead lean toward its real ecliptic azimuth `poleEclipticLonDeg` (doc 03 Table 6), otherwise the seasons are phase-shifted (a June Earth renders like a March equinox). With the default Euler order `'XYZ'` and `rotation.x = 0`, Three.js applies the Z tilt first, then the Y yaw — exactly what we need:
+  ```ts
+  tiltGroup.rotation.z = degToRad(axialTiltDeg);              // lean the pole (toward −X so far)
+  tiltGroup.rotation.y = degToRad(poleEclipticLonDeg - 180);  // yaw the lean to its real azimuth
+  mesh.rotation.y = degToRad(rotationAngleDeg + 180 - poleEclipticLonDeg); // spin, yaw-compensated
+  ```
+  The spin compensation `+ 180 − poleEclipticLonDeg` cancels the yaw so the sub-solar-longitude invariant of doc 02 (step D, test 11b) is preserved (within the ~2–3° projection error of spinning around a tilted axis — accepted). For the tilt-0 moons (`poleEclipticLonDeg = 0`) the −180° yaw and the +180° spin compensation cancel exactly — nothing changes for them. The sun has **no** tilt group: its mesh keeps plain `rotation.y = degToRad(rotationAngleDeg)`. Sanity check: near a June solstice, Earth's north pole leans toward the Sun and the arctic is entirely on the lit side.
 
 ## Scaling formulas (`domain/scaling.ts`) — the "not to scale but proportional" core
 
@@ -73,7 +79,7 @@ scene
     ├── orbitGroup (rotation.x = incl)
     │   ├── orbitLine                          (LineLoop, see below)
     │   └── anchor (Object3D) — position set every frame from orbitalAngleDeg
-    │       ├── tiltGroup (rotation.z = tilt)
+    │       ├── tiltGroup (rotation.z = tilt, rotation.y = pole azimuth − 180°)
     │       │   └── bodyMesh (rotation.y = spin)   [+ ringsMesh for saturn]
     │       └── moonsGroup (visible = false in system view)
     │           └── per moon: same orbitGroup/orbitLine/anchor/tiltGroup/mesh pattern,
@@ -222,8 +228,8 @@ simClock.tick(delta)
 for each planet & visible moon:
   { orbitalAngleDeg, rotationAngleDeg } = model.stateAt(id, simClock.simDaysSinceEpoch)
   anchor.position.set(R·cos, 0, −R·sin)
-  bodyMesh.rotation.y = degToRad(rotationAngleDeg)
-sun mesh rotation.y likewise
+  bodyMesh.rotation.y = degToRad(rotationAngleDeg + 180 − poleEclipticLonDeg)  // yaw-compensated spin
+sun mesh rotation.y = degToRad(rotationAngleDeg)   // no tilt group on the sun → no compensation
 updateEarthNightLights(earthMesh)               // S14 — see "Earth night lights"
 if focused: cameraDirector.trackFocusedBody()   // see below
 controls.update()
@@ -252,7 +258,7 @@ For the **focused body = Earth only**, replace step 1's direction `normalize(cur
 
 1. **Visitor longitude** (degrees east), from the same browser timezone the InfoPanel surfaces as local time (doc 06): `Lv = −(new Date().getTimezoneOffset()) / 60 × 15`. (`getTimezoneOffset()` is minutes *west* of UTC, hence the minus; Paris in summer → +30°.) Put it in a pure `domain/` function (`visitorLongitudeDeg()`), unit-tested — it touches neither `three` nor React.
 2. **Sub-solar longitude** at focus time, from the API state (doc 02 step D, test 11b): `Lss = (orbitalAngleDeg + 180 − rotationAngleDeg) mod 360`, via `model.stateAt('earth', simDays)`. Its meridian faces the Sun — i.e. world direction `dSun = normalize(−P)`, where `P` is Earth's world position (the Sun sits at the origin).
-3. **Rotate** `dSun` around world **+Y** by `Δ = Lv − Lss` to get the visitor meridian's outward direction: `dV = makeRotationY(Δ·π/180) · dSun`. Axial tilt is ignored here (same class of simplification as the ignored pole azimuth). If the camera lands on the wrong meridian, flip the sign of `Δ` and verify once — exactly like the view-offset sign in step 3.
+3. **Rotate** `dSun` around world **+Y** by `Δ = Lv − Lss` to get the visitor meridian's outward direction: `dV = makeRotationY(Δ·π/180) · dSun`. Axial tilt is ignored here (documented simplification: it shifts the framed meridian by a few degrees at most). If the camera lands on the wrong meridian, flip the sign of `Δ` and verify once — exactly like the view-offset sign in step 3.
 4. `endCamPos = P + dV · dist` — **skip the `y ≥ 0.25·dist` clamp** when a `focusDirection` is provided. The clamp exists to prevent the generic path from going below the ecliptic, but applying it to a near-horizontal meridian direction would push the camera toward the north pole instead of facing the equator.
 
 SceneManager owns this computation (it holds the model and the clock) and passes the resulting world direction into `CameraDirector.focusBody`; React keeps calling `focusBody(bodyId, layout)` with **no** Three.js object crossing the boundary (doc 04 layering). For every other body the focus direction is unchanged.

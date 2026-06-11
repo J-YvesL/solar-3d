@@ -307,3 +307,28 @@ No frontend change: the frontend already extrapolates from the API's `rotationAn
 - [x] Focus mechanics unchanged: ~1.2 s ease, Earth in the left (desktop) half, smooth orbit tracking, Back/Escape reset.
 - [x] `visitorLongitudeDeg()` unit test green (3 cases, 40 frontend tests total).
 - [x] No regression for other bodies — focusing the Sun, a planet or a moon still flies in from the current camera direction.
+
+---
+
+## S16 — Real axial-tilt direction (correct seasons & solstices)
+
+**Read first:** doc 03 (Table 6 + accuracy notes), doc 05 (coordinate conventions — the new tilt/spin formulas — + scene graph + animation loop), doc 02 (DTO field, step D invariant, test 14c), doc 00 (F15).
+
+**Goal:** Each planet's spin axis leans toward its real ecliptic azimuth, so the seasons happen at the right dates: near the June solstice, Earth's north pole leans toward the Sun, the arctic is in permanent daylight, and Western Europe stays lit until late evening UTC — instead of the equinox-like terminator the old fixed tilt produced.
+
+**Context:** Until S15 the tilt was applied as `tiltGroup.rotation.z` only — correct magnitude, but the pole always leaned toward scene azimuth 180° ("real pole azimuth ignored" — that doc 05 simplification is now lifted). The seasonal phase was wrong by ~90° for Earth: on 2026-06-11 (Earth at heliocentric longitude ≈ 260°), the scene rendered a near-March-equinox geometry, putting Europe in darkness ~2 h early. Doc 03 now provides Table 6 (`poleEclipticLonDeg`) and doc 05 specifies the Y-yaw + spin compensation that keeps the sub-solar-longitude invariant (doc 02 step D, test 11b) intact. Pure data passthrough on the backend — no algorithm change.
+
+**Tasks**
+1. `packages/shared/src/bodies.ts`: add `poleEclipticLonDeg: number` to `BodyDto` (doc 02 DTO comment included).
+2. `apps/backend/src/data/bodies.ts`: add `poleEclipticLonDeg` to every record — Table 6 values for the sun + 8 planets, `0` for all 20 moons. `apps/backend/src/ephemeris/state.ts`: pass the field through like `axialTiltDeg`.
+3. `apps/backend/src/data/bodies.test.ts`: test 14c (doc 02) — `[0, 360)` for all, earth exactly 90, venus 210.19, uranus 77.65, every moon 0.
+4. Frontend: add the field to `domain/types.ts` (`Body`) and the `api/client.ts` DTO→Body mapper.
+5. `three/SceneManager.ts` — `buildSolarSystem` **and** `animateBodies`: apply the doc 05 formulas — `tiltGroup.rotation.y = degToRad(poleEclipticLonDeg − 180)` (the `rotation.z` tilt is unchanged) and spin `mesh.rotation.y = degToRad(rotationAngleDeg + 180 − poleEclipticLonDeg)` for planets and moons; the sun (no tilt group) keeps plain `rotationAngleDeg`. No per-frame allocations.
+6. Run the whole backend + frontend test suites: test 11b must stay green untouched (the spin compensation must not move the terminator).
+
+**Manual acceptance**
+- [x] All tests green, including new test 14c and unmodified test 11b.
+- [x] System view at the current real date (June 2026, near solstice): from a side view, Earth's north pole visibly leans toward the Sun; Uranus still spins visibly sideways; Saturn's rings still tilted. (Verified 2026-06-11 ~20:30 UTC, headless render + scene-graph cross-check: pole tilt 23.44°, pole azimuth 9.4° from the Sun direction — the 10 days left to the solstice; was ~170° before the fix.)
+- [x] Focused Earth in the evening: arctic cap entirely in daylight on the lit face, sub-solar point in the northern hemisphere (sub-solar latitude +23.1° measured; was ~0° before the fix); night side over Europe/Africa shows S14 city lights.
+- [x] Sub-solar longitude unchanged (regression vs S13): measured 232.59°E vs 232.70°E expected at 20:29 UTC — within 0.11°.
+- [x] Moon terminator still matches the real moon phase (regression: for tilt-0 moons the −180° yaw and +180° spin compensation cancel exactly).

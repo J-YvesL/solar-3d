@@ -161,11 +161,14 @@ export class SceneManager {
       orbitGroup.add(anchor);
 
       const tiltGroup = new THREE.Group();
+      // Default 'XYZ' Euler order applies the Z tilt before the Y yaw (doc 05):
+      // lean the pole, then aim the lean at its real ecliptic azimuth.
       tiltGroup.rotation.z = degToRad(planet.axialTiltDeg);
+      tiltGroup.rotation.y = degToRad(planet.poleEclipticLonDeg - 180);
       anchor.add(tiltGroup);
 
       const mesh = createBodyMesh(planet, this.textures);
-      mesh.rotation.y = degToRad(planet.rotationAngleDeg);
+      mesh.rotation.y = degToRad(planet.rotationAngleDeg + 180 - planet.poleEclipticLonDeg);
       tiltGroup.add(mesh);
 
       // S14 — Earth city lights on the night hemisphere (only if both the day map
@@ -209,10 +212,12 @@ export class SceneManager {
         moonOrbitGroup.add(moonAnchor);
 
         const moonTiltGroup = new THREE.Group();
+        moonTiltGroup.rotation.z = degToRad(moon.axialTiltDeg);
+        moonTiltGroup.rotation.y = degToRad(moon.poleEclipticLonDeg - 180);
         moonAnchor.add(moonTiltGroup);
 
         const moonMesh = createBodyMesh(moon, this.textures);
-        moonMesh.rotation.y = degToRad(moon.rotationAngleDeg);
+        moonMesh.rotation.y = degToRad(moon.rotationAngleDeg + 180 - moon.poleEclipticLonDeg);
         moonTiltGroup.add(moonMesh);
 
         this.sceneBodyMap.set(moon.id, {
@@ -279,7 +284,9 @@ export class SceneManager {
         );
       }
 
-      entry.mesh.rotation.y = rotationAngleDeg * DEG;
+      // The sun has no tilt group, so no yaw to compensate (doc 05).
+      const spinOffsetDeg = body.type === "star" ? 0 : 180 - body.poleEclipticLonDeg;
+      entry.mesh.rotation.y = (rotationAngleDeg + spinOffsetDeg) * DEG;
     }
   }
 

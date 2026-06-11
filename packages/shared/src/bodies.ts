@@ -15,6 +15,7 @@ export interface BodyDto {
   radiusKm: number;
   rotationPeriodHours: number;
   axialTiltDeg: number;
+  poleEclipticLonDeg: number;
   color: string;
   // orbit (null for the sun)
   semiMajorAxisKm: number | null;

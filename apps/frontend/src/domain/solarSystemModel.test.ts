@@ -11,6 +11,7 @@ function makeBody(id: string, overrides: Partial<Body> = {}): Body {
     radiusKm: 1000,
     rotationPeriodHours: 24,
     axialTiltDeg: 0,
+    poleEclipticLonDeg: 0,
     color: "#FFFFFF",
     semiMajorAxisKm: 100_000_000,
     eccentricity: 0,

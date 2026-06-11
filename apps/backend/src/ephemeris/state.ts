@@ -38,6 +38,7 @@ export function computeBodyStates(date: Date): BodyDto[] {
       radiusKm: body.radiusKm,
       rotationPeriodHours: body.rotationPeriodHours,
       axialTiltDeg: body.axialTiltDeg,
+      poleEclipticLonDeg: body.poleEclipticLonDeg,
       color: body.color,
       semiMajorAxisKm: body.semiMajorAxisKm,
       eccentricity: body.eccentricity,

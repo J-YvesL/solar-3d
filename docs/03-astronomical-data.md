@@ -145,12 +145,34 @@ The rotation angle is **anchored to the real orientation of each body at J2000**
 - The invariant these values guarantee: `subSolarLongitudeDeg = (orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` matches reality at any date, within a few degrees (projection approximations of doc 02/05) — i.e. the lit hemisphere and the texture longitude facing the Sun are correct. For Earth: sub-solar longitude ≈ `(180 − 15 × UTC decimal hours) mod 360` within ±4° (equation of time + approximations).
 - **Venus and Uranus are indicative only**: our retrograde-via-tilt convention (tilt > 90°, positive spin) mirrors the texture's east/west direction, so their sub-solar longitude drifts in the wrong direction over time. Their anchor is correct at J2000 but effectively arbitrary decades later. Accepted: Venus is featureless clouds, Uranus near-featureless. Do not try to fix this with negative rotation rates — out of scope.
 
+## Table 6 — Spin-pole azimuth (`poleEclipticLonDeg`)
+
+`axialTiltDeg` (Table 2) only gives the tilt **magnitude**; the direction the pole leans toward sets the **seasonal phase**. `poleEclipticLonDeg` is the ecliptic longitude toward which the body's spin pole leans — the pole around which the spin is counter-clockwise (for Venus and Uranus, `axialTiltDeg > 90`, this is the **opposite** of the IAU north pole). Without it the scene shows solstices and equinoxes at the wrong dates (e.g. an equinox-like Earth in June, night falling ~2 h too early at European latitudes). One value for the sun + 8 planets; the **20 moons use `poleEclipticLonDeg = 0`** (their `axialTiltDeg` is 0, the azimuth is meaningless — doc 05 explains why the 0 placeholder is harmless).
+
+| id | poleEclipticLonDeg | basis (IAU north pole α, δ — equatorial J2000) |
+|---|---|---|
+| sun | 345.77 | (286.13, +63.87) — cosmetic: the sun is not tilted in the scene (doc 05) |
+| mercury | 318.24 | (281.0103, +61.4155) — near-zero tilt, azimuth barely visible |
+| venus | 210.19 | opposite of (272.76, +67.16) — tilt > 90 |
+| earth | 90.00 | exact by definition of ecliptic coordinates (pole at λ = 90°, β = 66.56°) |
+| mars | 352.91 | (317.68143, +52.88650) |
+| jupiter | 247.82 | (268.056595, +64.495303) |
+| saturn | 79.53 | (40.589, +83.537) |
+| uranus | 77.65 | opposite of (257.311, −15.175) — tilt > 90 |
+| neptune | 319.24 | (299.36, +43.46) |
+
+**Sources.** IAU north-pole directions (α₀, δ₀ at J2000, constant terms) from the same WGCCRE 2015 report as Table 5, converted to ecliptic longitude with obliquity ε = 23.4392911°: `λ = atan2(sin α · cos ε + tan δ · sin ε, cos α) mod 360`; for `axialTiltDeg > 90` (Venus, Uranus) the spin pole is the opposite of the IAU pole — add 180°.
+
+**Accuracy notes.**
+- Cross-check built into the data: `90° − β` of each spin pole reproduces Table 2's `axialTiltDeg` within ~2° (the residual is each planet's orbital inclination: Table 2 tilts are measured against the body's own orbit plane, λ/β against the ecliptic). Earth comes out exactly 90.00 / 23.44.
+- The azimuth is applied inside the inclined orbit group (doc 05) while λ is measured on the ecliptic — error ≤ the orbital inclination, same class as the ignored node longitude Ω.
+
 ## How this maps to backend files
 
 Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
 
 - `keplerianElements.ts` — Table 1 (planets only).
-- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons).
+- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 20 moons).
 - `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 29 ids).
 
 A unit test must assert: 29 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).

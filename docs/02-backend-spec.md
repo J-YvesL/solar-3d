@@ -59,6 +59,7 @@ export interface BodyDto {
   radiusKm: number;
   rotationPeriodHours: number; // always > 0 (see doc 03 conventions)
   axialTiltDeg: number;        // 0–180; > 90 means retrograde-looking spin
+  poleEclipticLonDeg: number;  // ecliptic longitude the spin pole leans toward (doc 03 Table 6); 0 for moons
   color: string;               // "#RRGGBB"
   // orbit (null for the sun)
   semiMajorAxisKm: number | null;
@@ -168,6 +169,8 @@ These expected values were produced by a reference implementation of the exact a
 12. Exactly 29 bodies; ids unique; 1 star, 8 planets, 20 moons.
 13. Every non-null `parentId` refers to an existing body; moon counts per planet: earth 1, mars 2, jupiter 4, saturn 7, uranus 5, neptune 1.
 14. Every body id has an entry in `bodyInfo`; every color matches `/^#[0-9A-F]{6}$/i`.
+14b. Every body has `rotationAtJ2000Deg` in `[0, 360)` (added by S13).
+14c. Every body has `poleEclipticLonDeg` in `[0, 360)`; spot checks vs doc 03 Table 6: earth exactly 90, venus 210.19, uranus 77.65, every moon 0.
 
 `routes/bodies.test.ts` (supertest against `createApp()`)
 15. `GET /api/bodies` → 200, `bodies.length === 29`, `epochIso` parses to a valid date, every planet/moon has `orbitalAngleDeg` in `[0, 360)`.
