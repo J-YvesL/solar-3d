@@ -89,6 +89,61 @@ scene
 - Acceptance check: looking at Earth, the Sun-facing side is clearly lit, the opposite side near-black. If the dark side is invisible, raise ambient to max 0.12; if no contrast, lower it — never above 0.15.
 - Sphere segments: planets `SphereGeometry(r, 48, 48)`, moons `(r, 32, 32)`.
 
+### Earth night lights (city lights) — story S14
+
+Earth — and **only** Earth — shows the `earth-night.jpg` city lights (doc 08) on its dark hemisphere, masked in the shader so they appear on the night side only and fade out across the terminator. Use `onBeforeCompile` on the existing `MeshStandardMaterial` — no extra mesh, no extra dependency.
+
+**Do not route this through `material.emissive` / `material.emissiveMap`.** The Picker (doc 06) drives `material.emissive` for hover/focus highlighting (`0x222222` on hover, `0x000000` when focused). If the night lights used `emissive` as their carrier, focusing Earth would set it to black and the lights would vanish. Instead, pass the night map as its own `uNightMap` sampler and **add** it to `totalEmissiveRadiance`, so it composes independently of whatever emissive highlight the Picker sets:
+
+```ts
+// three/earthNightLights.ts
+const NIGHT_INTENSITY = 1.0;
+// Returns the per-frame updater; call it once per frame from the animation loop.
+export function applyEarthNightLights(
+  material: THREE.MeshStandardMaterial,     // must already carry Earth's day `map` (for vMapUv)
+  nightTexture: THREE.Texture,              // preload map key "earth-night" (doc 08)
+): (earthMesh: THREE.Object3D) => void {
+  const uSunDirection = { value: new THREE.Vector3(1, 0, 0) }; // body → sun, world space
+  const uNightMap = { value: nightTexture };
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uSunDirection = uSunDirection;
+    shader.uniforms.uNightMap = uNightMap;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWorldNormal;")
+      .replace(
+        "#include <defaultnormal_vertex>",
+        "#include <defaultnormal_vertex>\nvWorldNormal = normalize(mat3(modelMatrix) * objectNormal);",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vWorldNormal;\nuniform vec3 uSunDirection;\nuniform sampler2D uNightMap;",
+      )
+      .replace(
+        "#include <emissivemap_fragment>",
+        `#include <emissivemap_fragment>
+        float cosSun = dot(normalize(vWorldNormal), uSunDirection);
+        float nightMask = 1.0 - smoothstep(-0.10, 0.10, cosSun);
+        totalEmissiveRadiance += texture2D(uNightMap, vMapUv).rgb * nightMask * ${NIGHT_INTENSITY};`,
+      );
+  };
+
+  const tmp = new THREE.Vector3();
+  return (earthMesh) => {
+    earthMesh.getWorldPosition(tmp);                            // sun is at the world origin,
+    uSunDirection.value.copy(tmp).multiplyScalar(-1).normalize(); // so body → sun = −worldPos
+  };
+}
+```
+
+- The mask `1.0 − smoothstep(−0.10, 0.10, cosSun)` is 0 on the day side, 1 in deep night, 0.5 exactly on the terminator — a ~±6° twilight band where the lights fade in. Keep the edges in this order: GLSL `smoothstep` requires `edge0 < edge1`.
+- `vMapUv` is the day map's UV varying; it exists because Earth's material carries the base `map`. Only call this when that map is present (it always is — the day texture is committed).
+- Reuse `tmp` — the updater runs every frame and must not allocate (same rule as the rest of the loop).
+- The night map is color data: it keeps `SRGBColorSpace` (doc 08), so `texture2D(uNightMap, …)` returns linear values, same as any sampled color map.
+- Bloom: the night map is mostly near-black and stays below the 0.85 bloom threshold. If the city lights visibly bloom, lower `NIGHT_INTENSITY` to 0.7 — never below 0.5, the lights must remain clearly visible in the focused view.
+- If `"earth-night"` is missing from the preload map, **do not call this function at all**: Earth renders exactly as before (graceful-fallback policy of doc 08).
+
 ### Saturn's rings
 
 ```ts
@@ -152,11 +207,12 @@ Subtle is the goal: stars must never compete with the planets.
 ## Time & animation loop
 
 ```ts
-export const SIM_DAYS_PER_REAL_SECOND_SYSTEM = 2;     // system view: Earth year ≈ 3 min
-export const SIM_DAYS_PER_REAL_SECOND_FOCUSED = 0.05; // focused view: moons stay watchable
+// Real-time: 1 simulated day = 86 400 real seconds = 24 real hours
+export const SIM_DAYS_PER_REAL_SECOND_SYSTEM = 1 / 86_400;
+export const SIM_DAYS_PER_REAL_SECOND_FOCUSED = 1 / 86_400;
 ```
 
-The `SimulationClock` (doc 04) integrates `simDays += rate · realDelta`; `SceneManager` switches the rate when entering/leaving focus (the clock keeps its accumulated `simDays` — no jump).
+The simulation runs at real-time speed: Earth takes ~365 real days to complete one orbit, the Moon ~27 real days, etc. The `SimulationClock` (doc 04) integrates `simDays += rate · realDelta`; `SceneManager` switches the rate when entering/leaving focus (the clock keeps its accumulated `simDays` — no jump).
 
 Per frame (`renderer.setAnimationLoop`):
 
@@ -168,6 +224,7 @@ for each planet & visible moon:
   anchor.position.set(R·cos, 0, −R·sin)
   bodyMesh.rotation.y = degToRad(rotationAngleDeg)
 sun mesh rotation.y likewise
+updateEarthNightLights(earthMesh)               // S14 — see "Earth night lights"
 if focused: cameraDirector.trackFocusedBody()   // see below
 controls.update()
 composer.render()
@@ -180,7 +237,7 @@ composer.render()
 1. Compute every frame during the transition (the planet moves!):
    - `targetPos` = focused body's **world position** (`mesh.getWorldPosition`)
    - `dist = max(outermostMoonOrbitRadius * 1.6, bodyDisplayRadius * 8)`; for the sun or a moon: `bodyDisplayRadius * 8`
-   - `endCamPos = targetPos + normalize(currentCamPos − targetPos, but y clamped ≥ 0.25·dist) · dist`
+   - `endCamPos = targetPos + normalize(currentCamPos − targetPos, but y clamped ≥ 0.25·dist) · dist` — **for Earth this direction is overridden, see "Earth focus direction" below**.
 2. Animate over **1.2 s** with ease-in-out-cubic (`t<0.5 ? 4t³ : 1−(−2t+2)³/2`): lerp `camera.position → endCamPos` and `controls.target → targetPos`. Controls disabled during the transition, re-enabled after with `minDistance = dist·0.3`, `maxDistance = dist·4`.
 3. **Half-screen placement via view offset** (this is the trick — do not move the target sideways):
    - horizontal layout (desktop): `camera.setViewOffset(w, h, 0.25·w, 0, w, h)` → body renders in the **left** half.
@@ -188,6 +245,17 @@ composer.render()
    - If the body lands on the wrong side, flip the offset sign — verify visually once.
 4. After the transition, every frame (`trackFocusedBody`): `controls.target.copy(bodyWorldPos)` and translate the camera by the body's frame-to-frame world displacement so the view follows the body on its orbit.
 5. Show `moonsGroup` (and moon orbit lines) of the focused planet at transition start; clock rate → FOCUSED.
+
+### Earth focus direction — face the visitor's meridian (S15)
+
+For the **focused body = Earth only**, replace step 1's direction `normalize(currentCamPos − targetPos)` with the outward direction of the visitor's own timezone meridian, so clicking Earth lands the camera in front of *their* region (and, when it is night for them, in front of their S14 city lights). Everything else in the transition — `dist`, the 1.2 s ease, the half-screen view offset (step 3), the moving-target tracking (step 4) — is unchanged; only the direction differs, and only for Earth.
+
+1. **Visitor longitude** (degrees east), from the same browser timezone the InfoPanel surfaces as local time (doc 06): `Lv = −(new Date().getTimezoneOffset()) / 60 × 15`. (`getTimezoneOffset()` is minutes *west* of UTC, hence the minus; Paris in summer → +30°.) Put it in a pure `domain/` function (`visitorLongitudeDeg()`), unit-tested — it touches neither `three` nor React.
+2. **Sub-solar longitude** at focus time, from the API state (doc 02 step D, test 11b): `Lss = (orbitalAngleDeg + 180 − rotationAngleDeg) mod 360`, via `model.stateAt('earth', simDays)`. Its meridian faces the Sun — i.e. world direction `dSun = normalize(−P)`, where `P` is Earth's world position (the Sun sits at the origin).
+3. **Rotate** `dSun` around world **+Y** by `Δ = Lv − Lss` to get the visitor meridian's outward direction: `dV = makeRotationY(Δ·π/180) · dSun`. Axial tilt is ignored here (same class of simplification as the ignored pole azimuth). If the camera lands on the wrong meridian, flip the sign of `Δ` and verify once — exactly like the view-offset sign in step 3.
+4. `endCamPos = P + dV · dist` — **skip the `y ≥ 0.25·dist` clamp** when a `focusDirection` is provided. The clamp exists to prevent the generic path from going below the ecliptic, but applying it to a near-horizontal meridian direction would push the camera toward the north pole instead of facing the equator.
+
+SceneManager owns this computation (it holds the model and the clock) and passes the resulting world direction into `CameraDirector.focusBody`; React keeps calling `focusBody(bodyId, layout)` with **no** Three.js object crossing the boundary (doc 04 layering). For every other body the focus direction is unchanged.
 
 ### Reset (`resetView()`)
 

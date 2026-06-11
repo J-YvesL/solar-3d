@@ -40,7 +40,7 @@ pnpm download-textures   # one-shot asset download (story S6 only)
 
 ## Hard rules
 
-1. **Follow `docs/BACKLOG.md` strictly in order.** One story at a time; meet its acceptance criteria + definition of done (doc 07) before moving on. One commit per story: `S<n>: <summary>`.
+1. **Follow `docs/BACKLOG.md` strictly in order.** One story at a time; meet its acceptance criteria + definition of done (doc 07) before moving on. One commit per story: `feat: s<n> <summary>` — all lowercase, no dashes.
 2. **Never invent values.** Every astronomical number comes from doc 03, every formula from docs 02/05, every UI text from docs 03/06. If a value seems missing, re-read the doc; if it is genuinely missing, stop and ask — do not guess.
 3. **Frontend layering is law** (doc 04): `domain/` imports neither `three` nor `react`; `three/` never imports React; only `react/` may import React. ESLint enforces it — never weaken those rules.
 4. **No Three.js object in React state/props/context, ever.** React ↔ Three communication only via the `SceneManager` public API (doc 04).

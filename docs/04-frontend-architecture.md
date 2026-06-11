@@ -32,6 +32,7 @@ apps/frontend/src/
 │   ├── CameraDirector.ts    # OrbitControls wrapper + animated focus/reset transitions
 │   ├── Picker.ts            # raycasting: pointer → body id (or null)
 │   ├── textures.ts          # preloadTextures(): Promise<Map<string, Texture>> (doc 08)
+│   ├── earthNightLights.ts  # applyEarthNightLights(): Earth night-side city lights (doc 05, S14)
 │   └── postprocessing.ts    # EffectComposer + UnrealBloomPass setup
 └── react/
     ├── App.tsx              # state machine: loading | error | ready

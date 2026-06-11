@@ -127,10 +127,18 @@ with `L₀ = meanLongitudeAtJ2000Deg` from Table 3 (doc 03).
 ### D. Rotation angle (every body, including the sun)
 
 ```
-rotationAngleDeg = ( 360 · (ΔdaysJ2000 · 24) / rotationPeriodHours ) mod 360
+rotationAngleDeg = ( W₀ + 360 · (ΔdaysJ2000 · 24) / rotationPeriodHours ) mod 360
 ```
 
-Phase 0 at J2000 is an arbitrary but deterministic convention (real surface-feature phase is out of scope — note it in a code comment).
+with `W₀ = rotationAtJ2000Deg` from Table 5 of doc 03 (0 for the 19 moons not listed there).
+
+The anchor `W₀` ties the rotation phase to the **real orientation** of each body at J2000 (Earth: GMST; others: IAU/Horizons-derived — see doc 03 Table 5). The resulting invariant, used by the tests below:
+
+```
+subSolarLongitudeDeg = ( orbitalAngleDeg + 180 − rotationAngleDeg ) mod 360
+```
+
+matches the real sub-solar longitude at any date — i.e. the day/night terminator is correct (within a few degrees; for Earth, sub-solar longitude ≈ `(180 − 15 · UTC hours) mod 360`). This requires the 6-decimal `rotationPeriodHours` of doc 03 Table 2 — do not round them.
 
 All `mod 360` operations must return values in `[0, 360)` **including for negative inputs**: use `((x % 360) + 360) % 360`.
 
@@ -153,7 +161,8 @@ These expected values were produced by a reference implementation of the exact a
 `ephemeris/state.test.ts`
 9. Moon @ J2000 → `orbitalAngleDeg` = 218.32; @ J2000 + exactly one period (27.3217 d) → 218.32 ± 0.001.
 10. Moon @ J2000 + 7 d → **310.554 ± 0.01**.
-11. Earth rotation @ J2000 → 0; @ J2000 + 48 h → **1.970 ± 0.01**.
+11. Earth rotation @ J2000 → **280.461 ± 0.01** (= GMST anchor); @ J2000 + 48 h → **282.432 ± 0.01**.
+11b. Sub-solar longitude (terminator anchoring): for Earth, compute `(orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` → @ `2026-06-11T12:00:00Z` = **0.74 ± 0.5** (sun over ~Greenwich at noon UTC); @ `2026-06-11T00:00:00Z` = **180.75 ± 0.5** (sun over the antimeridian at midnight UTC).
 
 `data/bodies.test.ts`
 12. Exactly 29 bodies; ids unique; 1 star, 8 planets, 20 moons.

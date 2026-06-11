@@ -26,6 +26,8 @@ One screen, no routing:
 | F10 | Responsive: on desktop the focused view splits left (3D) / right (panel); on mobile/portrait it splits top (3D) / bottom (panel) |
 | F11 | Exit focus with Escape, a Back button, or by clicking empty space |
 | F12 | Fully standalone: all assets (textures) are committed in the repo, the app never fetches anything from third-party servers at runtime |
+| F13 | City lights: Earth's night hemisphere shows the real lights of major cities, fading out across the day/night terminator (best seen in the focused view) |
+| F14 | Clicking Earth aims the camera at the visitor's own timezone meridian, so their region faces the camera (derived from the local time already shown in the panel) |
 
 ## Explicit non-goals
 
@@ -107,7 +109,7 @@ Do **not** implement any of these, even if they seem like natural improvements:
 | **Eccentric anomaly (E)** | Intermediate angle, solution of Kepler's equation `E − e·sin(E) = M`. |
 | **True anomaly (ν)** | The real angle between perihelion and the body, seen from the Sun. Derived from `E`. |
 | **Orbital angle** | *This project's* output value: the body's angular position on its orbit, `0–360°`, measured counter-clockwise (seen from "above"/+Y) from the reference direction +X. Computed as `(ϖ + ν) mod 360`. |
-| **Rotation angle** | The body's spin orientation around its own axis, `0–360°`. Phase 0 at J2000 (arbitrary but deterministic). |
+| **Rotation angle** | The body's spin orientation around its own axis, `0–360°`. Anchored to the real orientation at J2000 (doc 03 Table 5) so the day/night terminator is physically correct; the 19 minor moons use phase 0 (arbitrary but deterministic). |
 | **Axial tilt** | Angle between the body's spin axis and the perpendicular to the ecliptic. Earth ≈ 23.4°, Uranus ≈ 98° (it rolls on its side). |
 | **Display units** | Three.js world units after applying the scaling formulas of doc 05. Not kilometers. |
 | **System view / Focused view** | The two UI modes described above. |

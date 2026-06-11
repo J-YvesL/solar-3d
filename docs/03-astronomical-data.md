@@ -40,19 +40,20 @@ Source: JPL "Approximate Positions of the Planets", Table 1 (valid 1800–2050),
 | id | name | radiusKm | rotationPeriodHours | axialTiltDeg | orbitalPeriodDays | semiMajorAxisKm | color |
 |---|---|---|---|---|---|---|---|
 | sun | Sun | 695700 | 609.12 | 7.25 | — | — | `#FDB813` |
-| mercury | Mercury | 2439.7 | 1407.6 | 0.03 | 87.969 | 57909050 | `#9F8E84` |
-| venus | Venus | 6051.8 | 5832.5 | 177.36 | 224.701 | 108208000 | `#E6C89C` |
-| earth | Earth | 6371.0 | 23.9345 | 23.44 | 365.256 | 149598023 | `#4F71BE` |
-| mars | Mars | 3389.5 | 24.6229 | 25.19 | 686.980 | 227939366 | `#C1572D` |
-| jupiter | Jupiter | 69911 | 9.9250 | 3.13 | 4332.589 | 778479000 | `#C8A97E` |
-| saturn | Saturn | 58232 | 10.656 | 26.73 | 10759.22 | 1433530000 | `#E3D1A8` |
-| uranus | Uranus | 25362 | 17.24 | 97.77 | 30688.5 | 2870972000 | `#9BD4D4` |
-| neptune | Neptune | 24622 | 16.11 | 28.32 | 60182 | 4500000000 | `#4565D5` |
+| mercury | Mercury | 2439.7 | 1407.5075 | 0.03 | 87.969 | 57909050 | `#9F8E84` |
+| venus | Venus | 6051.8 | 5832.4436 | 177.36 | 224.701 | 108208000 | `#E6C89C` |
+| earth | Earth | 6371.0 | 23.934472 | 23.44 | 365.256 | 149598023 | `#4F71BE` |
+| mars | Mars | 3389.5 | 24.622962 | 25.19 | 686.980 | 227939366 | `#C1572D` |
+| jupiter | Jupiter | 69911 | 9.924920 | 3.13 | 4332.589 | 778479000 | `#C8A97E` |
+| saturn | Saturn | 58232 | 10.656222 | 26.73 | 10759.22 | 1433530000 | `#E3D1A8` |
+| uranus | Uranus | 25362 | 17.240000 | 97.77 | 30688.5 | 2870972000 | `#9BD4D4` |
+| neptune | Neptune | 24622 | 15.966300 | 28.32 | 60182 | 4500000000 | `#4565D5` |
 
 Notes:
 - `semiMajorAxisKm` here is informational/display data; the backend computes planet positions from Table 1 (in au), not from this column.
 - For the planets' DTO fields `eccentricity` and `inclinationDeg` (doc 02), use the **J2000 values of Table 1** (columns `e` and `I`, first line of each planet — ignore the rates for these fields).
 - Venus and Uranus have `axialTiltDeg > 90` and a positive rotation period — see Conventions.
+- `rotationPeriodHours` values are sidereal periods derived from the IAU 2015 rotation rates (`8640 / |Ẇ deg·day⁻¹|`, source in Table 5). The 6-decimal precision is required: the rotation phase is anchored at J2000 (Table 5) and a rounded period would drift the day/night terminator by tens of degrees per decade (e.g. Saturn would be off by ~163° after 26 years with the 3-decimal value).
 
 ## Table 3 — Moons (20)
 
@@ -121,12 +122,35 @@ Each body's `info` object has exactly three string fields: `description`, `compo
 | oberon | The outermost large moon of Uranus, old, dark and cratered. | Water ice and rock with a possible ocean layer | Oberon, like all Uranian moons, is named after a Shakespeare character — the fairy king. |
 | triton | Neptune's giant moon, orbiting backwards — almost certainly a captured Kuiper Belt object. | Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere | Triton's retrograde orbit means Neptune's tides will eventually tear it apart. |
 
+## Table 5 — Rotation phase at J2000 (`rotationAtJ2000Deg`)
+
+The rotation angle is **anchored to the real orientation of each body at J2000** so that the day/night terminator is physically correct at the current date (doc 02, step D). One value per body; the **19 moons not listed here use `rotationAtJ2000Deg = 0`** — real rotational phase for minor moons is out of scope (they are tidally locked and untextured, so the anchor is invisible anyway).
+
+| id | rotationAtJ2000Deg | basis |
+|---|---|---|
+| sun | 84.176 | IAU W₀ (cosmetic — no terminator on the sun) |
+| mercury | 339.511 | Horizons-derived (see below) |
+| venus | 337.525 | Horizons-derived — **indicative only** (see note) |
+| earth | 280.4606 | **GMST at J2000** (Greenwich Mean Sidereal Time, 18.697 374 6 h × 15) |
+| mars | 218.245 | Horizons-derived |
+| jupiter | 283.963 | Horizons-derived (System III) |
+| saturn | 171.532 | Horizons-derived (System III) |
+| uranus | 115.865 | Horizons-derived — **indicative only** (see note) |
+| neptune | 276.980 | Horizons-derived |
+| moon | 38.194 | Horizons-derived (cross-checks with IAU W₀ = 38.3213) |
+
+**Sources.** Rotation rates: B. A. Archinal et al., *Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015*, Celest. Mech. Dyn. Astron. 130:22 (2018). Phase values: derived from **JPL Horizons** sub-solar longitudes at JD 2451545.0 (observer table, quantity 14, center `500@10`, retrieved 2026-06-11), converted to east-positive longitude where Horizons reports west-positive (Mercury, Mars, Jupiter, Saturn, Neptune), corrected for light-time, then expressed in this project's scene frame as `rotationAtJ2000Deg = (orbitalAngleDeg(J2000) + 180 − subSolarLongitudeEast(J2000)) mod 360`. Earth uses GMST(J2000) directly per spec — it agrees with the Horizons-derived value (279.56) to within ~0.9° (ecliptic-vs-equator projection).
+
+**Accuracy notes.**
+- The invariant these values guarantee: `subSolarLongitudeDeg = (orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` matches reality at any date, within a few degrees (projection approximations of doc 02/05) — i.e. the lit hemisphere and the texture longitude facing the Sun are correct. For Earth: sub-solar longitude ≈ `(180 − 15 × UTC decimal hours) mod 360` within ±4° (equation of time + approximations).
+- **Venus and Uranus are indicative only**: our retrograde-via-tilt convention (tilt > 90°, positive spin) mirrors the texture's east/west direction, so their sub-solar longitude drifts in the wrong direction over time. Their anchor is correct at J2000 but effectively arbitrary decades later. Accepted: Venus is featureless clouds, Uranus near-featureless. Do not try to fix this with negative rotation rates — out of scope.
+
 ## How this maps to backend files
 
 Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
 
 - `keplerianElements.ts` — Table 1 (planets only).
-- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors.
+- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons).
 - `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 29 ids).
 
 A unit test must assert: 29 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).

@@ -12,7 +12,9 @@
 
 ### Hover (desktop only)
 
-On `pointermove` (throttled to one raycast per frame max): if over a pickable body, set `canvas.style.cursor = "pointer"` and bump the material (`material.emissive.setHex(0x222222)` — only if the material is a `MeshStandardMaterial`; the sun uses `MeshBasicMaterial`, which has no emissive: cursor change only); restore (`0x000000`, cursor `default`) when leaving. Skip hover logic entirely on touch-only devices (`matchMedia("(hover: none)")`).
+On `pointermove` (throttled to one raycast per frame max): if over a pickable body, set `canvas.style.cursor = "pointer"` and bump the material (`material.emissive.setHex(0x222222)` — only if the material is a `MeshStandardMaterial`; the sun uses `MeshBasicMaterial`, which has no emissive: cursor change only); restore (`0x000000`, cursor `default`) when leaving. The **currently focused body is excluded from the highlight** (hovering it does not bump its emissive — re-focusing it is a no-op anyway); the cursor still changes. Skip hover logic entirely on touch-only devices (`matchMedia("(hover: none)")`).
+
+> The Picker owns `material.emissive` for every pickable `MeshStandardMaterial`, writing `0x222222`/`0x000000` for hover and resetting to `0x000000` on focus. Earth's night lights (doc 05, story S14) therefore must **not** be carried by `material.emissive`/`emissiveMap` — they are added to `totalEmissiveRadiance` through a separate `uNightMap` sampler so the two never collide (focusing Earth, which blacks out `emissive`, must not extinguish the city lights).
 
 ## Selection state machine (React, `App.tsx`)
 
@@ -33,6 +35,7 @@ On `pointermove` (throttled to one raycast per frame max): if over a pickable bo
 - Entering focused: effect calls `scene.focusBody(id, layout)`. Leaving: `scene.resetView()`.
 - Selecting another body while focused (e.g. clicking a moon): just call `focusBody(newId, layout)` again — the CameraDirector animates from wherever it is. Focusing a **moon** keeps its planet's moonsGroup visible and shows the moon's info panel.
 - Clicking the **sun** focuses it like a planet (no moons to show).
+- Focusing **Earth** additionally aims the camera at the visitor's own timezone meridian (doc 05, "Earth focus direction", S15) — the same timezone the panel shows as local time. React still just calls `focusBody("earth", layout)`; the meridian math is internal to the three layer.
 - Escape key listener: `window.addEventListener("keydown", …)` in a React effect, active only when focused.
 
 ## Layout & responsiveness
@@ -84,6 +87,7 @@ Content, top to bottom (all data comes from the `Body` object — no extra fetch
    - **Day length (rotation)** — `rotationPeriodHours` humanized: `< 48 h` → hours, else days (1 decimal)
    - **Distance from parent** — `semiMajorAxisKm` formatted with thin spaces, label "Distance from Sun" for planets / "Distance from <parent name>" for moons
    - **Moons** — for planets with moons: comma-separated names (from `model.childrenOf(id)`)
+   - **Your local time** — Earth only: live clock in the visitor's own time zone, ticking every second (`toLocaleTimeString` + `Intl.DateTimeFormat().resolvedOptions().timeZone`), formatted `14:32:07 (Europe/Paris)`. Purely client-side; no astronomical meaning.
 4. **Fun fact** — `info.funFact`, italic, separated by a thin rule.
 
 Number formatting helper (domain or react util): integer grouping with narrow no-break spaces (`Intl.NumberFormat("en-US")` then replace `,` — or `useGrouping` with `" "`).
@@ -105,7 +109,7 @@ Number formatting helper (domain or react util): integer grouping with narrow no
 |---|---|
 | Click while camera transition is running | Ignored (SceneManager ignores picks while animating) |
 | Escape in system view | Nothing |
-| Click a moon in focused view | Re-focus on the moon; panel shows the moon; Back/Escape returns to **system view** (not to the planet — keep it simple) |
+| Click a moon in focused view | Re-focus on the moon; panel shows the moon; Back/Escape returns **up one level** to the parent planet (a second Back/Escape then returns to the system view) |
 | Click the sun | Focus + panel (no moons group, dist = 8·sunRadius) |
 | Resize while focused | Canvas resizes, view offset re-applied, panel reflows |
 | Orientation change while focused | Layout flips between horizontal/vertical, `setFocusLayout` called |
