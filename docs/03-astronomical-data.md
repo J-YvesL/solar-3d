@@ -1,0 +1,132 @@
+# 03 — Astronomical Data (single source of truth)
+
+Every number and every info text used in the project comes from this document. **Never invent, round differently, or "improve" a value** — copy these tables verbatim into `apps/backend/src/data/`.
+
+## Conventions (read first)
+
+- Angles in **degrees**, distances in **km** (orbital elements in **au** where stated), periods in **days** (orbits) or **hours** (rotation).
+- `1 au = 149 597 870.7 km`. `earthRadiusKm = 6371` (used by frontend scaling, doc 05).
+- **All periods are positive. Retrograde motion is never encoded with negative periods.** Instead:
+  - A body **spins** counter-clockwise around its own axis; an `axialTiltDeg > 90°` (Venus 177.36°, Uranus 97.77°) makes the spin appear retrograde. This matches the IAU convention.
+  - A moon **orbits** counter-clockwise in its orbital plane; an `inclinationDeg > 90°` (Triton 157°) makes the orbit appear retrograde.
+- Moons use a **circular orbit approximation** (uniform angular speed). This is a deliberate POC simplification; their `meanLongitudeAtJ2000Deg` below is the starting angle.
+- Earth uses the JPL "EM Bary" (Earth–Moon barycenter) elements — standard for this approximation level.
+
+## Table 1 — Planet Keplerian elements at J2000 + rates per century
+
+Source: JPL "Approximate Positions of the Planets", Table 1 (valid 1800–2050), mean ecliptic and equinox of J2000. First line = value at J2000, second line = change per Julian century (`/Cy`).
+
+| Planet | a (au) | e | I (deg) | L (deg) | ϖ long.peri. (deg) | Ω long.node (deg) |
+|---|---|---|---|---|---|---|
+| Mercury | 0.38709927 | 0.20563593 | 7.00497902 | 252.25032350 | 77.45779628 | 48.33076593 |
+| *rate* | 0.00000037 | 0.00001906 | −0.00594749 | 149472.67411175 | 0.16047689 | −0.12534081 |
+| Venus | 0.72333566 | 0.00677672 | 3.39467605 | 181.97909950 | 131.60246718 | 76.67984255 |
+| *rate* | 0.00000390 | −0.00004107 | −0.00078890 | 58517.81538729 | 0.00268329 | −0.27769418 |
+| Earth | 1.00000261 | 0.01671123 | −0.00001531 | 100.46457166 | 102.93768193 | 0.0 |
+| *rate* | 0.00000562 | −0.00004392 | −0.01294668 | 35999.37244981 | 0.32327364 | 0.0 |
+| Mars | 1.52371034 | 0.09339410 | 1.84969142 | −4.55343205 | −23.94362959 | 49.55953891 |
+| *rate* | 0.00001847 | 0.00007882 | −0.00813131 | 19140.30268499 | 0.44441088 | −0.29257343 |
+| Jupiter | 5.20288700 | 0.04838624 | 1.30439695 | 34.39644051 | 14.72847983 | 100.47390909 |
+| *rate* | −0.00011607 | −0.00013253 | −0.00183714 | 3034.74612775 | 0.21252668 | 0.20469106 |
+| Saturn | 9.53667594 | 0.05386179 | 2.48599187 | 49.95424423 | 92.59887831 | 113.66242448 |
+| *rate* | −0.00125060 | −0.00050991 | 0.00193609 | 1222.49362201 | −0.41897216 | −0.28867794 |
+| Uranus | 19.18916464 | 0.04725744 | 0.77263783 | 313.23810451 | 170.95427630 | 74.01692503 |
+| *rate* | −0.00196176 | −0.00004397 | −0.00242939 | 428.48202785 | 0.40805281 | 0.04240589 |
+| Neptune | 30.06992276 | 0.00859048 | 1.77004347 | −55.12002969 | 44.96476227 | 131.78422574 |
+| *rate* | 0.00026291 | 0.00005105 | 0.00035372 | 218.45945325 | −0.32241464 | −0.00508664 |
+
+## Table 2 — Physical & display data: Sun and planets
+
+| id | name | radiusKm | rotationPeriodHours | axialTiltDeg | orbitalPeriodDays | semiMajorAxisKm | color |
+|---|---|---|---|---|---|---|---|
+| sun | Sun | 695700 | 609.12 | 7.25 | — | — | `#FDB813` |
+| mercury | Mercury | 2439.7 | 1407.6 | 0.03 | 87.969 | 57909050 | `#9F8E84` |
+| venus | Venus | 6051.8 | 5832.5 | 177.36 | 224.701 | 108208000 | `#E6C89C` |
+| earth | Earth | 6371.0 | 23.9345 | 23.44 | 365.256 | 149598023 | `#4F71BE` |
+| mars | Mars | 3389.5 | 24.6229 | 25.19 | 686.980 | 227939366 | `#C1572D` |
+| jupiter | Jupiter | 69911 | 9.9250 | 3.13 | 4332.589 | 778479000 | `#C8A97E` |
+| saturn | Saturn | 58232 | 10.656 | 26.73 | 10759.22 | 1433530000 | `#E3D1A8` |
+| uranus | Uranus | 25362 | 17.24 | 97.77 | 30688.5 | 2870972000 | `#9BD4D4` |
+| neptune | Neptune | 24622 | 16.11 | 28.32 | 60182 | 4500000000 | `#4565D5` |
+
+Notes:
+- `semiMajorAxisKm` here is informational/display data; the backend computes planet positions from Table 1 (in au), not from this column.
+- For the planets' DTO fields `eccentricity` and `inclinationDeg` (doc 02), use the **J2000 values of Table 1** (columns `e` and `I`, first line of each planet — ignore the rates for these fields).
+- Venus and Uranus have `axialTiltDeg > 90` and a positive rotation period — see Conventions.
+
+## Table 3 — Moons (20)
+
+`a` = semi-major axis around the parent. `meanLongitudeAtJ2000Deg` (column `L₀`) is the orbital angle at J2000: the Moon's value is real; **all others are arbitrary fixed placeholders** (real moon ephemerides are out of scope) — they only guarantee a deterministic, reproducible layout. All these moons are tidally locked: `rotationPeriodHours = orbitalPeriodDays × 24`.
+
+| id | name | parentId | a (km) | orbitalPeriodDays | inclinationDeg | radiusKm | L₀ (deg) | color |
+|---|---|---|---|---|---|---|---|---|
+| moon | Moon | earth | 384400 | 27.3217 | 5.145 | 1737.4 | 218.32 | `#B8B8B8` |
+| phobos | Phobos | mars | 9376 | 0.3189 | 1.08 | 11.1 | 12 | `#8A7F72` |
+| deimos | Deimos | mars | 23463 | 1.2624 | 1.79 | 6.2 | 245 | `#9C9286` |
+| io | Io | jupiter | 421800 | 1.7691 | 0.04 | 1821.6 | 78 | `#E8D14C` |
+| europa | Europa | jupiter | 671100 | 3.5512 | 0.47 | 1560.8 | 152 | `#D8CDBE` |
+| ganymede | Ganymede | jupiter | 1070400 | 7.1546 | 0.18 | 2634.1 | 301 | `#9C8E7E` |
+| callisto | Callisto | jupiter | 1882700 | 16.689 | 0.19 | 2410.3 | 224 | `#7A6F63` |
+| mimas | Mimas | saturn | 185539 | 0.9420 | 1.57 | 198.2 | 35 | `#B4B0AA` |
+| enceladus | Enceladus | saturn | 237948 | 1.3702 | 0.01 | 252.1 | 98 | `#E8EAEA` |
+| tethys | Tethys | saturn | 294619 | 1.8878 | 1.12 | 531.1 | 167 | `#C9C5BD` |
+| dione | Dione | saturn | 377396 | 2.7369 | 0.02 | 561.4 | 233 | `#B9B4AC` |
+| rhea | Rhea | saturn | 527108 | 4.5175 | 0.35 | 763.8 | 312 | `#ABA69E` |
+| titan | Titan | saturn | 1221870 | 15.9454 | 0.35 | 2574.7 | 56 | `#D8A33C` |
+| iapetus | Iapetus | saturn | 3560820 | 79.3215 | 15.47 | 734.5 | 141 | `#8F857A` |
+| miranda | Miranda | uranus | 129390 | 1.4135 | 4.23 | 235.8 | 19 | `#A9A49C` |
+| ariel | Ariel | uranus | 191020 | 2.5204 | 0.26 | 578.9 | 88 | `#B5B0A8` |
+| umbriel | Umbriel | uranus | 266300 | 4.1442 | 0.13 | 584.7 | 203 | `#6E6A64` |
+| titania | Titania | uranus | 435910 | 8.7062 | 0.34 | 788.4 | 274 | `#A89F94` |
+| oberon | Oberon | uranus | 583520 | 13.4632 | 0.06 | 761.4 | 327 | `#95897C` |
+| triton | Triton | neptune | 354759 | 5.8770 | 157.0 | 1353.4 | 64 | `#C8C2D6` |
+
+Moon counts per planet (use in tests): Earth 1, Mars 2, Jupiter 4, Saturn 7, Uranus 5, Neptune 1 → **20 moons, 29 bodies total** (1 sun + 8 planets + 20 moons). Mercury and Venus have none.
+
+For moons, set `axialTiltDeg = 0` and `eccentricity = 0` in the data (circular approximation).
+
+## Table 4 — Info-panel texts
+
+Each body's `info` object has exactly three string fields: `description`, `composition`, `funFact`. Copy these texts verbatim.
+
+| id | description | composition | funFact |
+|---|---|---|---|
+| sun | The star at the center of our solar system, a near-perfect sphere of hot plasma that contains 99.86% of the system's mass. | ~73% hydrogen, ~25% helium, traces of oxygen, carbon, iron | One million Earths could fit inside the Sun. |
+| mercury | The smallest planet and the closest to the Sun, with a heavily cratered surface and almost no atmosphere. | Large iron core (~60% of mass), silicate mantle and crust | A year on Mercury (88 days) is shorter than its full day–night cycle (176 Earth days). |
+| venus | Earth's "twin" in size, wrapped in a crushing CO₂ atmosphere with clouds of sulfuric acid — the hottest planet. | Rocky body; atmosphere of 96.5% CO₂, surface pressure 92× Earth's | Venus spins backwards: its Sun rises in the west and sets in the east. |
+| earth | The only known world to harbor life, with liquid water covering 71% of its surface. | Iron-nickel core, silicate mantle; atmosphere of 78% N₂, 21% O₂ | Earth is the densest planet in the solar system. |
+| mars | The red planet, a cold desert world with the largest volcano and the deepest canyon in the solar system. | Iron-rich basaltic rock; thin CO₂ atmosphere (less than 1% of Earth's pressure) | Olympus Mons on Mars is about 2.5 times the height of Mount Everest. |
+| jupiter | The largest planet — a gas giant whose Great Red Spot is a storm wider than Earth that has raged for centuries. | ~90% hydrogen, ~10% helium; possible rocky core | Jupiter is more than twice as massive as all the other planets combined. |
+| saturn | The ringed gas giant: its spectacular rings are made of countless ice and rock fragments. | ~96% hydrogen, ~3% helium; icy ring particles from meters to centimeters | Saturn's average density is lower than water — it would float in a big enough bathtub. |
+| uranus | An ice giant that rotates on its side, with a pale cyan color from methane in its atmosphere. | Water, methane and ammonia "ices" over a rocky core; H₂/He atmosphere | Uranus's axis is tilted 98°: each pole gets 42 years of daylight, then 42 years of night. |
+| neptune | The farthest planet, a deep-blue ice giant with the fastest winds in the solar system (up to 2 100 km/h). | Water, methane and ammonia ices; H₂/He atmosphere with methane | Neptune was discovered by mathematics: its position was predicted before it was seen. |
+| moon | Earth's only natural satellite, whose gravity drives the ocean tides. | Silicate rock; small iron core; no atmosphere | The Moon always shows Earth the same face — it is tidally locked. |
+| phobos | The larger and closer of Mars's two tiny moons, orbiting faster than Mars rotates. | Carbon-rich rock and regolith, possibly a captured asteroid | Phobos spirals slowly inward and will crash into Mars or break apart in ~50 million years. |
+| deimos | The smaller, outer moon of Mars, just 12 km across. | Carbon-rich rock, similar to C-type asteroids | From Mars, Deimos looks like a bright star rather than a moon. |
+| io | The most volcanically active body in the solar system, squeezed by Jupiter's tides. | Silicate rock; surface of sulfur and sulfur dioxide frost | Io has hundreds of volcanoes, some erupting plumes 500 km high. |
+| europa | An icy moon hiding a global liquid-water ocean beneath its frozen shell — a prime target in the search for life. | Water-ice crust over a salty ocean; silicate mantle, iron core | Europa's hidden ocean may hold twice as much water as all of Earth's oceans. |
+| ganymede | The largest moon in the solar system — bigger than the planet Mercury. | Roughly half water ice, half silicate rock; iron core | Ganymede is the only moon known to have its own magnetic field. |
+| callisto | A dark, ancient world with the most heavily cratered surface in the solar system. | Mix of rock and water ice; possible subsurface ocean | Callisto's surface is about 4 billion years old — almost unchanged since its formation. |
+| mimas | A small icy moon whose giant crater Herschel makes it look like the Death Star. | Almost pure water ice | The crater Herschel is 139 km wide — a third of Mimas's own diameter. |
+| enceladus | A bright icy moon that shoots geysers of water from its south pole. | Water ice over a global subsurface ocean; rocky core | Enceladus's geysers feed Saturn's E ring with ice particles. |
+| tethys | A mid-sized icy moon of Saturn, scarred by the huge Odysseus crater and the Ithaca Chasma canyon. | Almost entirely water ice | Ithaca Chasma is a canyon stretching three quarters of the way around Tethys. |
+| dione | An icy Saturn moon streaked with bright "wispy" ice cliffs. | Mostly water ice with a rocky core | Dione's wispy streaks are cliffs of ice hundreds of meters high. |
+| rhea | Saturn's second-largest moon, a cold, cratered ball of ice and rock. | ~75% water ice, ~25% rock | Rhea may once have had its own faint ring system. |
+| titan | Saturn's largest moon — the only moon with a thick atmosphere, and lakes of liquid methane. | Water-ice crust; nitrogen atmosphere denser than Earth's | Titan's methane rain and rivers make it the only other world with standing liquid on its surface. |
+| iapetus | Saturn's two-faced moon: one hemisphere is coal-dark, the other bright as snow. | Mostly water ice; dark carbon-rich coating on one side | Iapetus has a mysterious equatorial mountain ridge up to 13 km high. |
+| miranda | Uranus's strangest moon, a jumbled patchwork of cliffs and canyons. | Water ice and silicate rock | Verona Rupes on Miranda may be the tallest cliff in the solar system (~20 km). |
+| ariel | The brightest of Uranus's moons, with relatively young valleys and ridges. | Water ice and rock, with possible ammonia ice | Ariel's surface is the youngest of Uranus's major moons. |
+| umbriel | The darkest of Uranus's large moons, ancient and heavily cratered. | Water ice and rock with dark surface material | A bright mysterious ring called the "fluorescent cheerio" sits in its crater Wunda. |
+| titania | The largest moon of Uranus, marked by huge fault canyons. | Roughly half water ice, half rock | Titania's canyon Messina Chasma stretches about 1 500 km. |
+| oberon | The outermost large moon of Uranus, old, dark and cratered. | Water ice and rock with a possible ocean layer | Oberon, like all Uranian moons, is named after a Shakespeare character — the fairy king. |
+| triton | Neptune's giant moon, orbiting backwards — almost certainly a captured Kuiper Belt object. | Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere | Triton's retrograde orbit means Neptune's tides will eventually tear it apart. |
+
+## How this maps to backend files
+
+Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
+
+- `keplerianElements.ts` — Table 1 (planets only).
+- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors.
+- `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 29 ids).
+
+A unit test must assert: 29 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).
