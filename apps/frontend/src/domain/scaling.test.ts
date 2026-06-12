@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, satelliteOrbitDisplayRadius, DISPLAY_SIZE_FACTOR } from "./scaling";
+import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, satelliteOrbitDisplayRadius, hitboxRadius, DISPLAY_SIZE_FACTOR, HITBOX_FACTOR, HITBOX_MIN_RADIUS } from "./scaling";
 
 describe("displayRadius", () => {
   it("sun → 12", () => expect(displayRadius(695700, "star")).toBe(12));
@@ -50,4 +50,13 @@ describe("satelliteOrbitDisplayRadius — ISS (S23)", () => {
     expect(satelliteOrbitDisplayRadius(2.5)).toBeCloseTo(3.5, 1));
   it("Moon display orbit unchanged at index 0 → 5.5 (satellite excluded from moon ranking)", () =>
     expect(moonOrbitDisplayRadius(2.5, 0)).toBeCloseTo(5.5, 1));
+});
+
+describe("hitboxRadius (S26)", () => {
+  it("HITBOX_FACTOR = 1.5", () => expect(HITBOX_FACTOR).toBe(1.5));
+  it("HITBOX_MIN_RADIUS = 1.2", () => expect(HITBOX_MIN_RADIUS).toBe(1.2));
+  it("earth (2.50) → 3.75", () => expect(hitboxRadius(2.5)).toBeCloseTo(3.75, 2));
+  it("sun (12) → 18", () => expect(hitboxRadius(12)).toBeCloseTo(18, 2));
+  it("iss (0.45) → 1.2 (floor)", () => expect(hitboxRadius(0.45)).toBe(1.2));
+  it("moon (0.74) → 1.2 (floor)", () => expect(hitboxRadius(0.74)).toBe(1.2));
 });

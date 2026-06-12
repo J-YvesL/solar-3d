@@ -1,4 +1,4 @@
-# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S25)
+# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S26)
 
 The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
@@ -202,3 +202,25 @@ Rules of engagement:
 - [x] `pnpm dev` (StrictMode): opening `/mars` directly lands on Mars focused — camera flight, panel, MARS active in the nav bar; `/titan` focuses Titan with SATURNE highlighted; `/` stays in system view.
 - [x] Verified headless (chromium screenshots) for `/mars`, `/titan`, `/`.
 - [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S26 — Spherical hitboxes for easier body picking
+
+**Read first:** doc 05 ("Hitboxes — S26"), doc 06 ("Picking"), doc 04 (layer rules — the radius formula is domain, the meshes are three).
+
+**Goal:** Every body gets an **invisible spherical hitbox** that the raycaster also tests, so a near-miss still selects the body. Motivated by the ISS (~0.9 units of mostly thin trusses — nearly unclickable) and by mobile, where tapping small planets is too hard; the mechanism is generic and covers all bodies.
+
+**Tasks**
+1. `domain/scaling.ts`: `HITBOX_FACTOR = 1.5`, `HITBOX_MIN_RADIUS = 1.2`, and `hitboxRadius(displayRadius) = max(displayRadius × HITBOX_FACTOR, HITBOX_MIN_RADIUS)`. Tests in `scaling.test.ts`: Earth 3.75, Sun 18, ISS 1.2 (floor), Moon 1.2 (floor).
+2. `three/buildScene.ts`: `createHitbox(bodyId, displayRadius)` — `SphereGeometry(hitboxRadius(displayRadius), 12, 12)`, `MeshBasicMaterial({ visible: false })` (invisible but still raycastable), `userData.bodyId` + `userData.isHitbox = true`. The caller sets `userData.pickTarget` to the body's visual `Object3D`.
+3. `three/SceneManager.ts`: `SceneBodyEntry` gains `hitbox`; add a hitbox on each planet `anchor` and each moon/satellite `moonAnchor` (anchors, not tilt groups — GLB scaling/spin must never affect the hitbox); Sun hitbox at the scene root. `updatePickables()` pushes `entry.hitbox` next to the body's meshes, same visibility subset as today.
+4. `three/Picker.ts`: hit resolution prefers **the first hit on real geometry; only if no real mesh was hit does the nearest hitbox win** (hitboxes never occlude real bodies). Hover resolves a hitbox to its `pickTarget` and applies/clears the emissive highlight by traversing the target's `MeshStandardMaterial` meshes (the whole ISS model now highlights, not just one child mesh); pointer cursor over hitboxes too; focused-body exclusion unchanged.
+5. Document in docs 05 and 06.
+
+**Acceptance**
+- [ ] Focused Earth view: clicking slightly **off** the ISS model focuses the ISS; clicking on Earth's face through the ISS hitbox still focuses Earth.
+- [ ] System view: clicking slightly off a small planet focuses it; clicking far empty space while focused still clears the selection.
+- [ ] Hover near the ISS highlights the whole model and shows the pointer cursor; the focused body still gets no highlight.
+- [ ] Hitboxes are invisible; no fps regression.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.

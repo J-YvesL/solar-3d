@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Body } from "../domain/types";
+import { hitboxRadius } from "../domain/scaling";
 
 /** 3000 uniformly distributed points on a sphere of radius 1800. */
 export function createStarfield(): THREE.Points {
@@ -88,6 +89,22 @@ export function prepareSatelliteGltf(scene: THREE.Group, bodyId: string): THREE.
   });
 
   return scene;
+}
+
+/**
+ * Invisible spherical hitbox around a body (S26, doc 06).
+ * An invisible material is not rendered but the mesh is still raycastable,
+ * so near-misses select the body (tiny ISS, mobile taps).
+ * The caller sets userData.pickTarget to the body's visual Object3D.
+ */
+export function createHitbox(bodyId: string, displayRadius: number): THREE.Mesh {
+  const hitbox = new THREE.Mesh(
+    new THREE.SphereGeometry(hitboxRadius(displayRadius), 12, 12),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  hitbox.userData["bodyId"] = bodyId;
+  hitbox.userData["isHitbox"] = true;
+  return hitbox;
 }
 
 /** Circular orbit line in the XZ plane (128 segments). */

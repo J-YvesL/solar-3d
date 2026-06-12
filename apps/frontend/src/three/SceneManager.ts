@@ -9,6 +9,7 @@ import {
 import type { SolarSystemModel } from "../domain/solarSystemModel";
 import {
   createBodyMesh,
+  createHitbox,
   createOrbitLine,
   createSaturnRings,
   createStarfield,
@@ -27,6 +28,7 @@ const degToRad = (d: number) => d * DEG;
 export interface SceneBodyEntry {
   anchor: THREE.Object3D;
   mesh: THREE.Object3D;  // THREE.Mesh for spheres, THREE.Group for GLTF models (S24)
+  hitbox: THREE.Mesh;    // S26 — invisible pick sphere, follows the anchor
   orbitRadius: number;
 }
 
@@ -98,7 +100,15 @@ export class SceneManager {
 
     const sunBody = model.bodies.find((b) => b.type === "star");
     if (sunBody !== undefined) {
-      this.sceneBodyMap.set(sunBody.id, { anchor: sunMesh, mesh: sunMesh, orbitRadius: 0 });
+      const sunHitbox = createHitbox(sunBody.id, sunBody.displayRadius);
+      sunHitbox.userData["pickTarget"] = sunMesh;
+      this.scene.add(sunHitbox);
+      this.sceneBodyMap.set(sunBody.id, {
+        anchor: sunMesh,
+        mesh: sunMesh,
+        hitbox: sunHitbox,
+        orbitRadius: 0,
+      });
     }
 
     this.buildSolarSystem();
@@ -247,14 +257,25 @@ export class SceneManager {
         moonMesh.rotation.y = degToRad(moon.rotationAngleDeg + 180 - moon.poleEclipticLonDeg);
         moonTiltGroup.add(moonMesh);
 
+        // S26 — hitbox on the anchor (not the tilt group): GLB scaling/spin never affects it
+        const moonHitbox = createHitbox(moon.id, moon.displayRadius);
+        moonHitbox.userData["pickTarget"] = moonMesh;
+        moonAnchor.add(moonHitbox);
+
         this.sceneBodyMap.set(moon.id, {
           anchor: moonAnchor,
           mesh: moonMesh,
+          hitbox: moonHitbox,
           orbitRadius: moonOrbitRadius,
         });
       }
 
-      this.sceneBodyMap.set(planet.id, { anchor, mesh, orbitRadius });
+      // S26 — hitbox on the anchor (not the tilt group), see moon hitbox note above
+      const hitbox = createHitbox(planet.id, planet.displayRadius);
+      hitbox.userData["pickTarget"] = mesh;
+      anchor.add(hitbox);
+
+      this.sceneBodyMap.set(planet.id, { anchor, mesh, hitbox, orbitRadius });
       this.scene.add(planetSystem);
     }
   }
@@ -357,9 +378,13 @@ export class SceneManager {
       const body = this.model.byId(id);
       if (body === undefined) continue;
       if (body.type === "moon" || body.type === "satellite") {
-        if (body.parentId === moonParentId) collectMeshes(entry.mesh);
+        if (body.parentId === moonParentId) {
+          collectMeshes(entry.mesh);
+          meshes.push(entry.hitbox);
+        }
       } else {
         collectMeshes(entry.mesh);
+        meshes.push(entry.hitbox);
       }
     }
     this.picker.setPickables(meshes);

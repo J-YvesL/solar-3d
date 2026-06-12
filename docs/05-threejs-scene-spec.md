@@ -71,6 +71,14 @@ export function moonOrbitDisplayRadius(parentDisplayRadius: number, index: numbe
 export function satelliteOrbitDisplayRadius(parentDisplayRadius: number): number {
   return parentDisplayRadius * 1.4;
 }
+
+// Hitbox radius (S26): invisible pick sphere around every body. The floor keeps
+// tiny bodies (ISS 0.45, Moon 0.74) tappable on mobile.
+export const HITBOX_FACTOR = 1.5;
+export const HITBOX_MIN_RADIUS = 1.2;
+export function hitboxRadius(displayRadius: number): number {
+  return Math.max(displayRadius * HITBOX_FACTOR, HITBOX_MIN_RADIUS);
+}
 ```
 
 ### Expected values (assert these in `scaling.test.ts`, tolerance ±0.05)
@@ -82,6 +90,8 @@ Orbit display radii: mercury 35.0, venus 81.2, earth 105.1, mars 136.2, jupiter 
 Moon orbits, e.g. Jupiter (parent 6.52): io 14.3, europa 21.5, ganymede 28.7, callisto 35.9.
 
 Satellite orbit (S23): iss 3.5 (= 2.5 × 1.4); the Moon stays at 5.5 (index 0 — satellites don't shift the moon ranking); iss display radius 0.45 (clamped, like phobos).
+
+Hitbox radii (S26): earth 3.75, sun 18, iss 1.2 (floor), moon 1.2 (floor).
 
 ## Scene graph
 
@@ -123,7 +133,14 @@ Two nested groups (yaw first, then inclination) — do not collapse them into on
 - Satellite orbit lines: same as moon orbit lines (`opacity 0.25`, focused view only).
 - CameraDirector: nothing changes — a satellite focuses like a moon (`dist = bodyDisplayRadius × 8`).
 
-## Materials & lighting
+### Hitboxes — S26
+
+Every body (sun, planets, moons, ISS) gets an **invisible spherical hitbox** so a near-miss still selects it — the ISS GLB is mostly thin trusses and small planets are hard to tap on mobile.
+
+- `createHitbox(bodyId, displayRadius)` in `three/buildScene.ts`: `SphereGeometry(hitboxRadius(displayRadius), 12, 12)` + `MeshBasicMaterial({ visible: false })` — an invisible material is **not rendered but still raycastable** (the Three.js raycaster ignores visibility), so there is zero render cost.
+- `userData`: `bodyId` (selection), `isHitbox = true` (hit-priority rule, doc 06), `pickTarget` = the body's visual `Object3D` (hover highlight, doc 06).
+- Scene-graph placement: child of the body's **anchor** (planets/moons/ISS) or the scene root for the sun — never inside the tilt group or the mesh, so GLB normalization scaling and spin can't distort it.
+- Pickability follows the body: `updatePickables()` adds the hitbox exactly when the body's own meshes are pickable (moon/satellite hitboxes only in their parent's focused view).
 
 - Planets/moons: `MeshStandardMaterial({ map: texture, roughness: 1, metalness: 0 })`; if the body has no texture file (doc 08), use `MeshStandardMaterial({ color: body.color, roughness: 1, metalness: 0 })`.
 - The single `PointLight` at the sun + low ambient produce the required day/night terminator automatically. **No shadow maps** (`renderer.shadowMap.enabled` stays false).

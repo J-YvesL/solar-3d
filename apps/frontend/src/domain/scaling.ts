@@ -39,3 +39,14 @@ export function moonOrbitDisplayRadius(parentDisplayRadius: number, index: numbe
 export function satelliteOrbitDisplayRadius(parentDisplayRadius: number): number {
   return parentDisplayRadius * 1.4;
 }
+
+export const HITBOX_FACTOR = 1.5;
+export const HITBOX_MIN_RADIUS = 1.2;
+
+/**
+ * Radius of a body's invisible spherical hitbox (S26, doc 05).
+ * The floor keeps tiny bodies (ISS 0.45, Moon 0.74) tappable on mobile.
+ */
+export function hitboxRadius(displayRadius: number): number {
+  return Math.max(displayRadius * HITBOX_FACTOR, HITBOX_MIN_RADIUS);
+}

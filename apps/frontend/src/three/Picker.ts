@@ -1,5 +1,14 @@
 import * as THREE from "three";
 
+/** Sets the emissive color on every MeshStandardMaterial under target (S26 — GLTF groups too). */
+function setEmissive(target: THREE.Object3D, hex: number): void {
+  target.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.material instanceof THREE.MeshStandardMaterial) {
+      obj.material.emissive.setHex(hex);
+    }
+  });
+}
+
 /**
  * Handles raycasting on pointerup (with 5 px drag threshold) and hover highlights.
  * Call update() once per frame to process pending hover raycasts.
@@ -10,7 +19,9 @@ export class Picker {
   private downX = 0;
   private downY = 0;
   private pendingHover = false;
-  private hovered: THREE.Mesh | null = null;
+  // Highlight target: the body's visual Object3D (sphere mesh or GLTF group), never a hitbox.
+  private hovered: THREE.Object3D | null = null;
+  private hoveredBodyId: string | null = null;
   private pickables: THREE.Mesh[] = [];
   private focused = false;
   // The currently focused body id — meshes with this bodyId never get the hover highlight.
@@ -44,12 +55,8 @@ export class Picker {
   setFocusedBodyId(bodyId: string | null): void {
     if (bodyId !== this.focusedBodyId) {
       // Clear any hover highlight that belonged to the previously focused body.
-      if (
-        this.hovered !== null &&
-        (this.hovered.userData["bodyId"] as string | undefined) === this.focusedBodyId
-      ) {
-        const mat = this.hovered.material;
-        if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x000000);
+      if (this.hovered !== null && this.hoveredBodyId === this.focusedBodyId) {
+        setEmissive(this.hovered, 0x000000);
       }
       this.focusedBodyId = bodyId;
     }
@@ -61,23 +68,19 @@ export class Picker {
     this.pendingHover = false;
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects(this.pickables);
-    const hit = hits.length > 0 ? (hits[0]!.object as THREE.Mesh) : null;
+    const hit = this.resolveHit(this.raycaster.intersectObjects(this.pickables));
+    const target = hit !== null ? this.highlightTarget(hit) : null;
 
-    if (hit === this.hovered) return;
+    if (target === this.hovered) return;
 
     if (this.hovered !== null) {
-      const mat = this.hovered.material;
-      if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x000000);
+      setEmissive(this.hovered, 0x000000);
       this.domElement.style.cursor = "default";
     }
-    this.hovered = hit;
+    this.hovered = target;
+    this.hoveredBodyId = hit !== null ? ((hit.userData["bodyId"] as string | undefined) ?? null) : null;
     if (this.hovered !== null) {
-      const hoveredBodyId = this.hovered.userData["bodyId"] as string | undefined;
-      if (hoveredBodyId !== this.focusedBodyId) {
-        const mat = this.hovered.material;
-        if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x222222);
-      }
+      if (this.hoveredBodyId !== this.focusedBodyId) setEmissive(this.hovered, 0x222222);
       this.domElement.style.cursor = "pointer";
     }
   }
@@ -88,11 +91,23 @@ export class Picker {
     if (this.hoverEnabled) {
       this.domElement.removeEventListener("pointermove", this.handleMove);
     }
-    if (this.hovered !== null) {
-      const mat = this.hovered.material;
-      if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x000000);
-    }
+    if (this.hovered !== null) setEmissive(this.hovered, 0x000000);
     this.domElement.style.cursor = "default";
+  }
+
+  /**
+   * S26 — the first hit on real geometry wins; only when every hit is a hitbox
+   * does the nearest hitbox win. Hitboxes never occlude real bodies.
+   */
+  private resolveHit(hits: THREE.Intersection[]): THREE.Object3D | null {
+    const visual = hits.find((h) => h.object.userData["isHitbox"] !== true);
+    return (visual ?? hits[0])?.object ?? null;
+  }
+
+  /** A hitbox highlights its body's visual Object3D (S26); real geometry highlights itself. */
+  private highlightTarget(hit: THREE.Object3D): THREE.Object3D {
+    const target: unknown = hit.userData["pickTarget"];
+    return target instanceof THREE.Object3D ? target : hit;
   }
 
   private readonly handleDown = (e: PointerEvent) => {
@@ -112,10 +127,10 @@ export class Picker {
     );
 
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects(this.pickables);
+    const hit = this.resolveHit(this.raycaster.intersectObjects(this.pickables));
 
-    if (hits.length > 0) {
-      const bodyId = (hits[0]!.object as THREE.Mesh).userData["bodyId"] as string | undefined;
+    if (hit !== null) {
+      const bodyId = hit.userData["bodyId"] as string | undefined;
       if (bodyId !== undefined) this.onBodySelected(bodyId);
     } else if (this.focused) {
       this.onSelectionCleared();

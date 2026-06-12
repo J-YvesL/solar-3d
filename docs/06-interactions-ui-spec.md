@@ -5,8 +5,9 @@
 ## Picking (`three/Picker.ts`)
 
 - Raycast on **`pointerup`**, and only if the pointer moved less than 5 px since `pointerdown` (so orbit-dragging never selects).
-- `THREE.Raycaster` against the array of body meshes only (keep a flat `pickables: Mesh[]` list — never raycast the whole scene; orbit lines, starfield and rings must not be pickable).
-- Hit → `bodyId = mesh.userData.bodyId` → emit `onBodySelected(bodyId)`.
+- `THREE.Raycaster` against the array of body meshes **plus their invisible hitbox spheres** (S26, doc 05) only (keep a flat `pickables: Mesh[]` list — never raycast the whole scene; orbit lines, starfield and rings must not be pickable).
+- **Hit priority (S26):** among the distance-sorted hits, the first hit on **real geometry** wins; only when every hit is a hitbox does the nearest hitbox win. Hitboxes never occlude real bodies (clicking Earth's face through the ISS hitbox selects Earth; clicking empty space just off the ISS selects the ISS).
+- Hit → `bodyId = mesh.userData.bodyId` → emit `onBodySelected(bodyId)` (hitboxes carry the same `bodyId`).
 - No hit **while focused** → emit `onSelectionCleared()` (click empty space = exit focus).
 - No hit while in system view → do nothing.
 - In system view, moons are hidden and therefore not pickable; in focused view the focused planet's moons are pickable.
@@ -14,7 +15,7 @@
 
 ### Hover (desktop only)
 
-On `pointermove` (throttled to one raycast per frame max): if over a pickable body, set `canvas.style.cursor = "pointer"` and bump the material (`material.emissive.setHex(0x222222)` — only if the material is a `MeshStandardMaterial`; the sun uses `MeshBasicMaterial`, which has no emissive: cursor change only); restore (`0x000000`, cursor `default`) when leaving. The **currently focused body is excluded from the highlight** (hovering it does not bump its emissive — re-focusing it is a no-op anyway); the cursor still changes. Skip hover logic entirely on touch-only devices (`matchMedia("(hover: none)")`).
+On `pointermove` (throttled to one raycast per frame max): if over a pickable body — same hit-priority rule as clicks (S26) — set `canvas.style.cursor = "pointer"` and bump the material; restore (`0x000000`, cursor `default`) when leaving. The highlight target is the body's **visual** `Object3D`: a hitbox hit resolves to its `userData.pickTarget` (S26), real geometry highlights itself. The emissive bump (`material.emissive.setHex(0x222222)`) is applied by traversing the target and touching every `MeshStandardMaterial` — the whole ISS GLB highlights as one; the sun (`MeshBasicMaterial`, no emissive) gets the cursor change only. The **currently focused body is excluded from the highlight** (hovering it does not bump its emissive — re-focusing it is a no-op anyway); the cursor still changes. Skip hover logic entirely on touch-only devices (`matchMedia("(hover: none)")`).
 
 > The Picker owns `material.emissive` for every pickable `MeshStandardMaterial`, writing `0x222222`/`0x000000` for hover and resetting to `0x000000` on focus. Earth's night lights (doc 05, story S14) therefore must **not** be carried by `material.emissive`/`emissiveMap` — they are added to `totalEmissiveRadiance` through a separate `uNightMap` sampler so the two never collide (focusing Earth, which blacks out `emissive`, must not extinguish the city lights).
 
