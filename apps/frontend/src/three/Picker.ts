@@ -13,8 +13,9 @@ export class Picker {
   private hovered: THREE.Mesh | null = null;
   private pickables: THREE.Mesh[] = [];
   private focused = false;
-  // The currently focused body's mesh — never gets the hover highlight.
-  private focusedMesh: THREE.Mesh | null = null;
+  // The currently focused body id — meshes with this bodyId never get the hover highlight.
+  // Using bodyId instead of a mesh reference supports GLTF models with multiple child meshes.
+  private focusedBodyId: string | null = null;
   // Hover only on devices that support it
   private readonly hoverEnabled = !window.matchMedia("(hover: none)").matches;
 
@@ -40,12 +41,17 @@ export class Picker {
   }
 
   /** The focused body is excluded from the hover highlight (doc 06). */
-  setFocusedMesh(mesh: THREE.Mesh | null): void {
-    this.focusedMesh = mesh;
-    // Clear any highlight already applied if the hovered mesh just became focused.
-    if (mesh !== null && this.hovered === mesh) {
-      const mat = mesh.material;
-      if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x000000);
+  setFocusedBodyId(bodyId: string | null): void {
+    if (bodyId !== this.focusedBodyId) {
+      // Clear any hover highlight that belonged to the previously focused body.
+      if (
+        this.hovered !== null &&
+        (this.hovered.userData["bodyId"] as string | undefined) === this.focusedBodyId
+      ) {
+        const mat = this.hovered.material;
+        if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x000000);
+      }
+      this.focusedBodyId = bodyId;
     }
   }
 
@@ -67,7 +73,8 @@ export class Picker {
     }
     this.hovered = hit;
     if (this.hovered !== null) {
-      if (this.hovered !== this.focusedMesh) {
+      const hoveredBodyId = this.hovered.userData["bodyId"] as string | undefined;
+      if (hoveredBodyId !== this.focusedBodyId) {
         const mat = this.hovered.material;
         if (mat instanceof THREE.MeshStandardMaterial) mat.emissive.setHex(0x222222);
       }

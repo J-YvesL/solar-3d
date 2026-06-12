@@ -13,6 +13,7 @@ import {
   createSaturnRings,
   createStarfield,
   createSun,
+  prepareSatelliteGltf,
 } from "./buildScene";
 import { CameraDirector } from "./CameraDirector";
 import { visitorLongitudeDeg } from "../domain/visitorLongitude";
@@ -25,7 +26,7 @@ const degToRad = (d: number) => d * DEG;
 
 export interface SceneBodyEntry {
   anchor: THREE.Object3D;
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;  // THREE.Mesh for spheres, THREE.Group for GLTF models (S24)
   orbitRadius: number;
 }
 
@@ -37,6 +38,7 @@ export class SceneManager {
   private readonly composer: EffectComposer;
   private readonly model: SolarSystemModel;
   private readonly textures: Map<string, THREE.Texture>;
+  private readonly gltfs: Map<string, THREE.Group>;
   private readonly picker: Picker;
   private readonly cameraDirector: CameraDirector;
 
@@ -63,9 +65,11 @@ export class SceneManager {
     container: HTMLElement,
     model: SolarSystemModel,
     textures: Map<string, THREE.Texture>,
+    gltfs: Map<string, THREE.Group> = new Map(),
   ) {
     this.model = model;
     this.textures = textures;
+    this.gltfs = gltfs;
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -226,7 +230,20 @@ export class SceneManager {
         moonTiltGroup.rotation.y = degToRad(moon.poleEclipticLonDeg - 180);
         moonAnchor.add(moonTiltGroup);
 
-        const moonMesh = createBodyMesh(moon, this.textures);
+        // S24: use the committed GLB for satellites; fall back to a sphere on any failure.
+        let moonMesh: THREE.Object3D;
+        if (moon.type === "satellite") {
+          const gltfScene = this.gltfs.get(moon.id);
+          if (gltfScene !== undefined) {
+            moonMesh = prepareSatelliteGltf(gltfScene.clone(), moon.id);
+          } else {
+            const sphere = createBodyMesh(moon, this.textures);
+            sphere.userData["bodyId"] = moon.id;
+            moonMesh = sphere;
+          }
+        } else {
+          moonMesh = createBodyMesh(moon, this.textures);
+        }
         moonMesh.rotation.y = degToRad(moon.rotationAngleDeg + 180 - moon.poleEclipticLonDeg);
         moonTiltGroup.add(moonMesh);
 
@@ -324,19 +341,30 @@ export class SceneManager {
         moonParentId = focused.parentId;
       }
     }
+
+    // Collect Mesh instances from an Object3D (handles both plain Mesh and GLTF Group).
+    const collectMeshes = (obj: THREE.Object3D): void => {
+      if (obj instanceof THREE.Mesh) {
+        meshes.push(obj);
+      } else {
+        obj.traverse((child) => {
+          if (child instanceof THREE.Mesh) meshes.push(child);
+        });
+      }
+    };
+
     for (const [id, entry] of this.sceneBodyMap) {
       const body = this.model.byId(id);
       if (body === undefined) continue;
       if (body.type === "moon" || body.type === "satellite") {
-        if (body.parentId === moonParentId) meshes.push(entry.mesh);
+        if (body.parentId === moonParentId) collectMeshes(entry.mesh);
       } else {
-        meshes.push(entry.mesh);
+        collectMeshes(entry.mesh);
       }
     }
     this.picker.setPickables(meshes);
     this.picker.setFocused(focusedId !== null);
-    const focusedEntry = focusedId !== null ? this.sceneBodyMap.get(focusedId) : undefined;
-    this.picker.setFocusedMesh(focusedEntry?.mesh ?? null);
+    this.picker.setFocusedBodyId(focusedId);
   }
 
   // ── Public API ────────────────────────────────────────────────────────────

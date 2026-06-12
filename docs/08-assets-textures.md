@@ -77,5 +77,11 @@ Same standalone policy as the textures: the model is downloaded **once at develo
 - **Budget**: ≤ **15 000 triangles** and ≤ **2 MB** — it must render smoothly on mobile and on low-end GPUs (the bloom pass already costs a full-screen pass). Prefer a single material; no animations, no skinning.
 - **Source & license**: a free-license low-poly ISS (NASA 3D Resources are public domain; CC0/CC BY models from Sketchfab/Poly Pizza also qualify). **At commit time, record here the exact source URL, author and license** — and if the license requires attribution (CC BY), add the credit line to the README (the HUD footer is not required unless the license demands public-facing attribution).
   - Source: *to be filled in S24* — URL, author, license.
+- **Source** (filled in S24):
+  - URL: `https://solarsystem.nasa.gov/gltf_embed/2378/` (embedded viewer page) — direct asset: `https://solarsystem.nasa.gov/rails/active_storage/blobs/redirect/…/ISS_stationary.glb`
+  - Author: NASA (Solar System Exploration)
+  - License: **U.S. Government Work — public domain** (17 U.S.C. § 105)
+  - File committed: `apps/frontend/public/models/iss.glb` — optimized with `gltf-transform optimize --texture-compress webp --texture-size 128` (original 43 MB → 2.7 MB)
+  - No attribution required by the license; the NASA credit is noted here for provenance.
 - **Download**: manual (one file, no script change). `.gitignore` must not exclude `public/models/`.
 - **Loading**: preloaded at boot alongside the textures via `GLTFLoader` (`three/examples/jsm/loaders/GLTFLoader` — bundled with three, **not a new dependency**), same `Promise.all`, same graceful-fallback policy: a missing/corrupt GLB → `console.warn`, the ISS renders as the S23 flat-color sphere, no crash. Scaling and `userData.bodyId` rules in doc 05 ("Satellites in the scene graph").

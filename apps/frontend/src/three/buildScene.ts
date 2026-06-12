@@ -70,6 +70,26 @@ export function createBodyMesh(body: Body, textures: Map<string, THREE.Texture>)
   return mesh;
 }
 
+/**
+ * Prepare a GLTF scene for use as a satellite mesh (S24, doc 05).
+ * Normalizes the bounding box to ~0.9 units and sets userData.bodyId
+ * on every descendant mesh so the Picker can identify it.
+ */
+export function prepareSatelliteGltf(scene: THREE.Group, bodyId: string): THREE.Group {
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (maxDim > 0) scene.scale.setScalar(0.9 / maxDim);
+
+  scene.traverse((obj) => {
+    if (obj instanceof THREE.Mesh) {
+      obj.userData["bodyId"] = bodyId;
+    }
+  });
+
+  return scene;
+}
+
 /** Circular orbit line in the XZ plane (128 segments). */
 export function createOrbitLine(radius: number, opacity = 0.35): THREE.LineLoop {
   const pts = Array.from({ length: 128 }, (_, i) => {

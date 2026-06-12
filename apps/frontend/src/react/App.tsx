@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Texture } from "three";
+import type { Group, Texture } from "three";
 import { fetchBodies, mapBodies } from "../api/client";
 import { resolveLocale } from "../domain/i18n/locale";
 import type { Locale } from "../domain/i18n/locale";
 import { t } from "../domain/i18n/strings";
 import { SolarSystemModel } from "../domain/solarSystemModel";
 import { preloadTextures } from "../three/textures";
+import { preloadModels } from "../three/models";
 import { CanvasHost } from "./CanvasHost";
 import { Hud } from "./Hud";
 import { InfoPanel } from "./InfoPanel";
@@ -18,7 +19,7 @@ import "./styles.css";
 type AppState =
   | { phase: "loading" }
   | { phase: "error"; message: string }
-  | { phase: "ready"; model: SolarSystemModel; textures: Map<string, Texture> };
+  | { phase: "ready"; model: SolarSystemModel; textures: Map<string, Texture>; gltfs: Map<string, Group> };
 
 export function App() {
   const locale: Locale = useMemo(() => resolveLocale(navigator.language), []);
@@ -46,12 +47,12 @@ export function App() {
     setState({ phase: "loading" });
     let cancelled = false;
 
-    Promise.all([fetchBodies(locale), preloadTextures()])
-      .then(([response, textures]) => {
+    Promise.all([fetchBodies(locale), preloadTextures(), preloadModels()])
+      .then(([response, textures, gltfs]) => {
         if (cancelled) return;
         const bodies = mapBodies(response);
         const model = new SolarSystemModel(bodies, response.epochIso);
-        setState({ phase: "ready", model, textures });
+        setState({ phase: "ready", model, textures, gltfs });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -97,6 +98,7 @@ export function App() {
         sceneRef={sceneRef}
         model={state.model}
         textures={state.textures}
+        gltfs={state.gltfs}
         onSelect={onSelect}
         onClear={onClear}
       />

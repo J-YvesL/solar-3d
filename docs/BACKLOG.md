@@ -176,8 +176,8 @@ Rules of engagement:
 5. Perf check: no visible fps drop in focused Earth view on mobile (and on the Pi headless-chromium setup).
 
 **Acceptance**
-- [ ] Focused Earth view: the recognizable ISS (truss + solar arrays) orbits Earth; hover highlight and click-to-focus work on every part of the model.
-- [ ] Delete/rename the GLB → app still boots, ISS renders as the S23 sphere, one console.warn, nothing else changes.
-- [ ] GLB committed, ≤ 15 k triangles / ≤ 2 MB; source + license documented in doc 08 (+ README if attribution required); still zero non-localhost requests from the frontend.
-- [ ] No fps regression in focused Earth view.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Focused Earth view: the recognizable ISS (truss + solar arrays) orbits Earth; hover highlight and click-to-focus work on every part of the model.
+- [x] Delete/rename the GLB → app still boots, ISS renders as the S23 sphere, one console.warn, nothing else changes.
+- [x] GLB committed, ≤ 15 k triangles / ≤ 2 MB; source + license documented in doc 08 (+ README if attribution required); still zero non-localhost requests from the frontend.
+- [x] No fps regression in focused Earth view.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
