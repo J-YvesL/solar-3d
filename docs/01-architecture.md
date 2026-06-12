@@ -120,8 +120,10 @@ sequenceDiagram
 
 Key consequence for implementers: **the backend gives a snapshot; all motion is computed client-side** in the domain layer from periods. The Kepler math lives only in the backend.
 
+> **ISS exception (v3, S23).** The ISS's elements come from a live TLE, not a static table: at most **once per 24 h** the backend GETs the CelesTrak TLE (native `fetch`, lazy in-memory cache, committed snapshot as offline fallback — doc 02 step E). This is the **only** external request in the whole system; the frontend still calls exactly one origin (`/api`), exactly once per page load. The ISS snapshot in the response is extrapolated client-side like any moon; a page refresh re-anchors it.
+
 ## What is NOT in the architecture
 
-- No database, no cache, no env-dependent config (hardcode ports above).
+- No database, no env-dependent config (hardcode ports above). No cache, except the single in-memory 24 h TLE cache above (no cache library — a module-level variable).
 - No Docker, no CI pipeline (out of scope for the POC).
 - No shared runtime utilities package — `@solar/shared` contains **types only**. If you feel the urge to share a function, copy it; do not grow the shared package.

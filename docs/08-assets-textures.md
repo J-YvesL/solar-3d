@@ -68,3 +68,14 @@ export async function preloadTextures(): Promise<Map<string, THREE.Texture>> {
 - Called during app boot **in parallel** with the API fetch (doc 04 boot sequence); the scene is only built once both resolve.
 - A missing texture is non-fatal: the body falls back to flat color (`map` absent ⇒ use `color` — doc 05). A missing `earth-night` entry is also non-fatal: Earth simply renders without city lights (doc 05, "Earth night lights").
 - `.gitignore` must **not** exclude `public/textures`. Add a `apps/frontend/public/textures/.gitkeep` in S1 so the folder exists before S6.
+
+## ISS model — `public/models/iss.glb` (S24)
+
+Same standalone policy as the textures: the model is downloaded **once at development time**, committed, and served from `apps/frontend/public/models/`. Zero third-party requests at runtime.
+
+- **Format**: a single self-contained `.glb` (binary glTF, textures embedded if any).
+- **Budget**: ≤ **15 000 triangles** and ≤ **2 MB** — it must render smoothly on mobile and on low-end GPUs (the bloom pass already costs a full-screen pass). Prefer a single material; no animations, no skinning.
+- **Source & license**: a free-license low-poly ISS (NASA 3D Resources are public domain; CC0/CC BY models from Sketchfab/Poly Pizza also qualify). **At commit time, record here the exact source URL, author and license** — and if the license requires attribution (CC BY), add the credit line to the README (the HUD footer is not required unless the license demands public-facing attribution).
+  - Source: *to be filled in S24* — URL, author, license.
+- **Download**: manual (one file, no script change). `.gitignore` must not exclude `public/models/`.
+- **Loading**: preloaded at boot alongside the textures via `GLTFLoader` (`three/examples/jsm/loaders/GLTFLoader` — bundled with three, **not a new dependency**), same `Promise.all`, same graceful-fallback policy: a missing/corrupt GLB → `console.warn`, the ISS renders as the S23 flat-color sphere, no crash. Scaling and `userData.bodyId` rules in doc 05 ("Satellites in the scene graph").

@@ -34,7 +34,7 @@ stateDiagram-v2
 
 - `selectedBodyId: string | null` is the single source of truth, owned by React.
 - Entering focused: effect calls `scene.focusBody(id, layout)`. Leaving: `scene.resetView()`.
-- Selecting another body while focused (e.g. clicking a moon): just call `focusBody(newId, layout)` again — the CameraDirector animates from wherever it is. Focusing a **moon** keeps its planet's moonsGroup visible and shows the moon's info panel.
+- Selecting another body while focused (e.g. clicking a moon): just call `focusBody(newId, layout)` again — the CameraDirector animates from wherever it is. Focusing a **moon** keeps its planet's moonsGroup visible and shows the moon's info panel. A **satellite** (S23) behaves exactly like a moon everywhere in this state machine: Back/Escape walks satellite → parent planet → system.
 - Clicking the **sun** focuses it like a planet (no moons to show).
 - Focusing **Earth** additionally aims the camera at the visitor's own timezone meridian (doc 05, "Earth focus direction", S15) — the same timezone the panel shows as local time. React still just calls `focusBody("earth", layout)`; the meridian math is internal to the three layer.
 - Escape key listener: `window.addEventListener("keydown", …)` in a React effect, active only when focused.
@@ -43,7 +43,7 @@ stateDiagram-v2
 
 A slim fixed bar along the top edge, visible in **both** view modes (system and focused), above the canvas.
 
-- **Items**: the Sun + the 8 planets, **in system order** (the API order: sun, mercury → neptune). Moons are never in the bar.
+- **Items**: the Sun + the 8 planets, **in system order** (the API order: sun, mercury → neptune). Moons and satellites are never in the bar (filter on `type === "star" || type === "planet"` — S23). When a satellite is focused, its parent planet's item is highlighted, same rule as moons.
 - **Labels**: the body's localized `name` from the API (so the bar follows the app language for free).
 - **Colors**: each item's text uses its body's `color` (the same hex the InfoPanel badge uses) at full opacity when active/hovered, ~0.75 opacity otherwise.
 - **Active state**: the focused body's item is highlighted (brighter + 2 px underline in the body color). When a **moon** is focused, its **parent planet's** item is highlighted. In system view, no item is active.
@@ -110,7 +110,7 @@ Card style: `background: rgba(10, 14, 24, 0.82); backdrop-filter: blur(6px); bor
 
 Content, top to bottom (all data comes from the `Body` object — no extra fetch):
 
-1. **Name** (h1) + type badge (`star` / `planet` / `moon` — small uppercase chip in the body's `color`).
+1. **Name** (h1) + type badge (`star` / `planet` / `moon` / `satellite` (S23) — small uppercase chip in the body's `color`, localized via the doc 09 type keys).
 2. `description` (from `info`).
 3. Fact rows (label left, value right; omit a row when the field is null):
    - **Composition** — `info.composition`
@@ -159,3 +159,7 @@ Number formatting helper (domain or react util): integer grouping with narrow no
 | Nav-menu click during a camera transition | Ignored, same rule as canvas picks (S21) |
 | Browser back from `/moon` | Focus Earth (`/earth`), then `/` on a second back — mirrors Back/Escape (S21) |
 | Browser language `pt-BR` (unsupported) | Whole app in English; API called with `lang=en`, never a 400 (S20, doc 09) |
+| Click the ISS in focused Earth view | Re-focus on the ISS like a moon; Back/Escape returns to Earth, then system; URL `/iss` → `/earth` → `/` (S23) |
+| Open `/iss` directly | Deep link into the focused ISS (Earth's moonsGroup visible), same as any moon deep link (S23) |
+| ISS GLB file missing (S24) | Falls back to the S23 sphere; console.warn, no crash (doc 08 policy) |
+| Backend offline from CelesTrak | ISS positioned from the committed TLE snapshot — app fully functional, no error surfaced (S23, doc 02) |

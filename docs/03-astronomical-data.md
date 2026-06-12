@@ -123,6 +123,7 @@ Each body's `info` object has exactly three string fields: `description`, `compo
 | titania | The largest moon of Uranus, marked by huge fault canyons. | Roughly half water ice, half rock | Titania's canyon Messina Chasma stretches about 1 500 km. |
 | oberon | The outermost large moon of Uranus, old, dark and cratered. | Water ice and rock with a possible ocean layer | Oberon, like all Uranian moons, is named after a Shakespeare character — the fairy king. |
 | triton | Neptune's giant moon, orbiting backwards — almost certainly a captured Kuiper Belt object. | Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere | Triton's retrograde orbit means Neptune's tides will eventually tear it apart. |
+| iss | The International Space Station, a football-field-sized research laboratory orbiting Earth every ~92 minutes, continuously inhabited since November 2000. | Aluminium modules, steel truss segments and eight solar array wings; ~915 m³ of pressurized volume | The ISS travels at about 28 000 km/h — its crew sees 16 sunrises and sunsets every day. |
 
 ## Table 5 — Rotation phase at J2000 (`rotationAtJ2000Deg`)
 
@@ -169,13 +170,28 @@ The rotation angle is **anchored to the real orientation of each body at J2000**
 - Cross-check built into the data: `90° − β` of each spin pole reproduces Table 2's `axialTiltDeg` within ~2° (the residual is each planet's orbital inclination: Table 2 tilts are measured against the body's own orbit plane, λ/β against the ecliptic). Earth comes out exactly 90.00 / 23.44.
 - The azimuth is applied inside the inclined orbit group (doc 05) while λ is measured on the ecliptic — error ≤ the orbital inclination, same class as the ignored node longitude Ω.
 
+## Table 7 — The ISS (satellite, S23)
+
+Static data only — the **orbit comes from a live TLE at request time** (doc 02, step E), never from this table. Like the moons: `axialTiltDeg = 0`, `poleEclipticLonDeg = 0`, `eccentricity = 0`, `rotationAtJ2000Deg` not applicable (rotation is locked to the orbit: `rotationAngleDeg = orbitalAngleDeg`, the real LVLH attitude).
+
+| id | name | type | parentId | radiusKm | color |
+|---|---|---|---|---|---|
+| iss | ISS | satellite | earth | 0.055 | `#C9D1D9` |
+
+Notes:
+- `radiusKm = 0.055` (109 m solar-array span → ~55 m half-extent). The display clamp of doc 05 applies — the ISS renders at the 0.45-unit floor, like Phobos. Hugely out of scale, deliberately: at true scale it would be invisible (~0.00002 units).
+- TLE-derived fields filled by the backend per request: `orbitalAngleDeg`, `orbitalPeriodDays` (≈ 0.0645), `inclinationDeg` (≈ 51.6), `nodeLonDeg`, `semiMajorAxisKm` (≈ 6 800), `rotationPeriodHours` (= orbitalPeriodDays × 24).
+- The committed fallback TLE lives in `data/issTle.ts` with its retrieval date in a comment; refresh it occasionally when touching the backend (not a hard requirement — only the phase goes stale, the orbit shape stays right).
+- The name `ISS` is identical in all five languages (doc 09).
+
 ## How this maps to backend files
 
 Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
 
 - `keplerianElements.ts` — Table 1 (planets only).
-- `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 20 moons).
-- `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 29 ids).
-- `localized/fr.ts`, `localized/es.ts`, `localized/it.ts`, `localized/de.ts` — localized `name` + `info` for all 29 ids (doc 09; names verbatim from the doc 09 table, texts translated from Table 4).
+- `bodies.ts` — Tables 2 + 3 + 7 merged: one record per body (30 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 20 moons and the iss).
+- `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 30 ids).
+- `issTle.ts` — committed TLE snapshot (Table 7 note; doc 02 step E).
+- `localized/fr.ts`, `localized/es.ts`, `localized/it.ts`, `localized/de.ts` — localized `name` + `info` for all 30 ids (doc 09; names verbatim from the doc 09 table, texts translated from Table 4).
 
-A unit test must assert: 29 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).
+A unit test must assert: 30 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).

@@ -26,7 +26,7 @@ apps/frontend/src/
 ├── domain/                  # PURE business logic — fully unit-testable without a browser
 │   ├── types.ts             # Body (domain model), ViewMode = "system" | "focused"
 │   ├── solarSystemModel.ts  # SolarSystemModel class (see below)
-│   ├── scaling.ts           # displayRadius(), orbitDisplayRadius(), moonOrbitDisplayRadius() — formulas in doc 05
+│   ├── scaling.ts           # displayRadius(), orbitDisplayRadius(), moonOrbitDisplayRadius(), satelliteOrbitDisplayRadius() (S23) — formulas in doc 05
 │   ├── simulationClock.ts   # SimulationClock class (see below)
 │   ├── routes.ts            # S21 — pathForBody(), bodyIdFromPath() (pure URL ↔ body mapping, doc 06)
 │   └── i18n/
@@ -37,7 +37,7 @@ apps/frontend/src/
 │   ├── buildScene.ts        # createStarfield(), createSun(), createBodyMesh(), createOrbitLine(), createSaturnRings()
 │   ├── CameraDirector.ts    # OrbitControls wrapper + animated focus/reset transitions
 │   ├── Picker.ts            # raycasting: pointer → body id (or null)
-│   ├── textures.ts          # preloadTextures(): Promise<Map<string, Texture>> (doc 08)
+│   ├── textures.ts          # preloadTextures(): Promise<Map<string, Texture>> (doc 08); S24: also preloads the ISS GLB (GLTFLoader)
 │   ├── earthNightLights.ts  # applyEarthNightLights(): Earth night-side city lights (doc 05, S14)
 │   └── postprocessing.ts    # EffectComposer + UnrealBloomPass setup
 └── react/

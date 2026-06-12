@@ -59,8 +59,17 @@ export function orbitDisplayRadius(semiMajorAxisAu: number): number {
 
 // Moon orbit in focused view: linear spread around the parent.
 // index = rank of the moon ordered by real semiMajorAxisKm (0 = innermost).
+// S23: the ranking counts type === "moon" ONLY — satellites are excluded,
+// otherwise the ISS (a = 6 791 km < the Moon's 384 400 km) would steal index 0
+// and push the Moon's display orbit from 5.5 to 8.25 units.
 export function moonOrbitDisplayRadius(parentDisplayRadius: number, index: number): number {
   return parentDisplayRadius * (2.2 + index * 1.1);
+}
+
+// Satellite orbit in focused view (S23): low orbit hugging the parent,
+// below every moon. Earth → 2.5 × 1.4 = 3.5 units.
+export function satelliteOrbitDisplayRadius(parentDisplayRadius: number): number {
+  return parentDisplayRadius * 1.4;
 }
 ```
 
@@ -71,6 +80,8 @@ Body display radii: mercury 1.70, venus 2.45, earth 2.50, mars 1.94, **jupiter 6
 Orbit display radii: mercury 35.0, venus 81.2, earth 105.1, mars 136.2, jupiter 226.8, saturn 271.6, uranus 323.2, neptune 356.4.
 
 Moon orbits, e.g. Jupiter (parent 6.52): io 14.3, europa 21.5, ganymede 28.7, callisto 35.9.
+
+Satellite orbit (S23): iss 3.5 (= 2.5 × 1.4); the Moon stays at 5.5 (index 0 — satellites don't shift the moon ranking); iss display radius 0.45 (clamped, like phobos).
 
 ## Scene graph
 
@@ -92,6 +103,25 @@ flowchart TD
 ```
 
 `bodyMesh.userData.bodyId = body.id` on every body mesh — the Picker (doc 06) relies on it.
+
+### Satellites in the scene graph (S23/S24)
+
+The ISS lives in **Earth's `moonsGroup`** — visible and pickable only in focused view, exactly like the Moon — with one extra wrapper for the ascending node, which satellites (unlike moons) cannot ignore: the ISS plane precesses ~5°/day, and the TLE's RAAN is what puts the orbit plane where it really is.
+
+```
+moonsGroup
+└── nodeGroup (rotation.y = degToRad(nodeLonDeg))      ← S23, satellites only
+    └── orbitGroup (rotation.x = degToRad(inclinationDeg))
+        └── orbitLine + anchor → mesh                   ← same pattern as a moon
+```
+
+Two nested groups (yaw first, then inclination) — do not collapse them into one Euler; nesting keeps the same unambiguous convention as the tilt group. With the project's angle convention (`x = R·cos θ, z = −R·sin θ`, CCW from +X), the ascending node sits at the local +X axis and `orbitalAngleDeg` is the argument of latitude — exactly what the backend serves (doc 02 step E). Equatorial→ecliptic frame simplification documented in doc 02.
+
+- **S23 mesh**: standard moon sphere (`SphereGeometry(0.45, 32, 32)`, flat `color` material — no texture).
+- **S24 mesh**: the committed `iss.glb` (doc 08) replaces the sphere. Normalize the model so its **bounding box fits in ~0.9 units** (the S23 sphere's footprint): compute `Box3().setFromObject`, scale by `0.9 / maxDimension`. Set `userData.bodyId = "iss"` on **every descendant mesh** (the Picker raycasts children, doc 06). The spin `rotation.y = degToRad(rotationAngleDeg)` (no tilt group, `poleEclipticLonDeg = 0` ⇒ compensation cancels) gives the real LVLH attitude for free since `rotationAngleDeg = orbitalAngleDeg`; apply at most **one fixed corrective rotation** on the model root so the truss/solar arrays read correctly — verify visually once, like the view-offset sign.
+- **Fallback**: `iss.glb` missing from the preload map → keep the S23 sphere (doc 08 graceful-fallback policy), `console.warn`, no crash.
+- Satellite orbit lines: same as moon orbit lines (`opacity 0.25`, focused view only).
+- CameraDirector: nothing changes — a satellite focuses like a moon (`dist = bodyDisplayRadius × 8`).
 
 ## Materials & lighting
 
@@ -231,7 +261,7 @@ Per frame (`renderer.setAnimationLoop`):
 ```
 delta = threeClock.getDelta()
 simClock.tick(delta)
-for each planet & visible moon:
+for each planet & visible moon/satellite:
   { orbitalAngleDeg, rotationAngleDeg } = model.stateAt(id, simClock.simDaysSinceEpoch)
   anchor.position.set(R·cos, 0, −R·sin)
   bodyMesh.rotation.y = degToRad(rotationAngleDeg + 180 − poleEclipticLonDeg)  // yaw-compensated spin

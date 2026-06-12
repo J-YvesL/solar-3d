@@ -1,4 +1,4 @@
-# BACKLOG v2 — Ordered Implementation Stories
+# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S24)
 
 The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
@@ -131,3 +131,53 @@ Rules of engagement:
 - [x] Version is single-sourced: bumping the frontend package.json changes the footer with no other edit.
 - [x] Still zero non-localhost requests at runtime (the link is user-initiated navigation, not an app fetch).
 - [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S23 — ISS: 30th body, real orbit from TLE (sphere rendering)
+
+**Read first:** doc 02 ("Step E" + tests 22–25), doc 03 (Table 7 — ISS static data + info texts), doc 05 ("Satellites" sections), doc 06 (NavMenu filter + edge cases), doc 09 (names table + `typeSatellite`).
+
+**Goal:** The ISS orbits Earth at its **real position**, computed from a live TLE (CelesTrak, cached 24 h, committed fallback). It is a first-class body: clickable, info panel, `/iss` URL, localized. Rendered as a plain sphere (the 3D model is S24). Position is anchored at page load — no polling; a page refresh re-syncs.
+
+**Context:** Unlike planets (250-year Keplerian tables) the ISS orbit changes daily (atmospheric drag + reboosts), so its elements must be fetched at runtime. A TLE is a 2-line fixed-width text format containing everything the existing circular-orbit pipeline needs (inclination, node, mean anomaly, mean motion) — parsed by hand, **no new dependency**. The backend converts TLE → moon-style circular elements; the frontend animates the ISS exactly like a moon of Earth. Tidally-locked rotation = the real LVLH attitude for free.
+
+**Tasks**
+1. `packages/shared`: add `"satellite"` to `BodyType`; add `nodeLonDeg: number | null` to `BodyDto` (TLE node for satellites, `null` for every other body) (doc 02).
+2. Backend data: `data/issTle.ts` (committed TLE snapshot + its retrieval date), ISS static record in `data/bodies.ts` and `data/bodyInfo.ts` (doc 03 Table 7), ISS entry in the four `data/localized/*.ts` (doc 09 policy, name `ISS` in all languages).
+3. `ephemeris/tle.ts`: `parseTle(line1, line2)` (fixed-column parsing, doc 02 step E), `deriveCircularElements(tle)` (period, semi-major axis via Kepler's third law, argument of latitude), `getIssTle()` (lazy in-memory cache, TTL 24 h, native `fetch` to the CelesTrak URL of doc 02, committed snapshot as fallback on any failure — fetch failure is never a 500).
+4. `ephemeris/state.ts`: append the ISS `BodyDto` to `computeBodyStates(date)` — angles propagated from the TLE epoch to the requested date with the existing circular formula; `rotationAngleDeg = orbitalAngleDeg` (LVLH); `?lang=` applies (entry exists in `localizedBodies`).
+5. Frontend: `typeSatellite` UI key ×5 locales (doc 09); `domain/scaling.ts` `satelliteOrbitDisplayRadius()` (doc 05) + mapper uses it for `type === "satellite"` and **excludes satellites from the moon index ranking** (the Moon stays index 0); `NavMenu` filter becomes `star | planet`.
+6. `three/buildScene.ts`: wrap satellite orbits in a node group (`rotation.y = degToRad(nodeLonDeg)`) around the inclined orbit group (doc 05, "Satellite orbit node"). Sphere rendering — no other scene change. InfoPanel: distance row uses the parent label path (already generic).
+7. Tests: doc 02 tests 22–25 (TLE parsing, derived elements, route, offline fallback); amend tests 12/13/21 (30 bodies, 1 satellite, ISS parent earth, 30 localized ids); frontend scaling + i18n completeness tests.
+
+**Acceptance**
+- [ ] Focused Earth view: the ISS orbits between the surface and the Moon (display orbit 3.5 units), completing one revolution in ~92 real minutes; its orbital plane is tilted ~51.6°.
+- [ ] Clicking the ISS (or opening `/iss`) focuses it: badge `satellite` (localized), real period (~1.5 h), distance from Earth; Back → Earth → system.
+- [ ] `curl localhost:3001/api/bodies | jq '.bodies[] | select(.id=="iss")'` → plausible live values (`orbitalAngleDeg` ∈ [0,360), `inclinationDeg` ≈ 51.6, `semiMajorAxisKm` ≈ 6 800); two calls a few minutes apart show the angle advancing at ~3.9°/min.
+- [ ] Backend started **without network**: ISS served from the committed TLE snapshot, no error, no 500.
+- [ ] CelesTrak is hit at most once per 24 h per backend process (verify via log/mock), and never by the frontend.
+- [ ] NavMenu unchanged (Sun + 8 planets); the Moon's display orbit is **unchanged** (~5.5 units).
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S24 — ISS: low-poly 3D model
+
+**Read first:** doc 08 ("ISS model"), doc 05 ("Satellite mesh — S24"), doc 06 (picking).
+
+**Goal:** The S23 sphere is replaced by a real low-poly 3D model of the ISS, committed to the repo, loaded with the bundled `GLTFLoader` (no new dependency), with graceful fallback to the sphere.
+
+**Tasks**
+1. Asset: pick a free-license low-poly ISS model (NASA 3D Resources / CC0 / CC BY — budget **≤ 15 000 triangles, ≤ 2 MB** as GLB), download it manually, commit it as `apps/frontend/public/models/iss.glb`, and record the exact source URL + license in doc 08 **in the same commit** (license text in the README if the license requires attribution).
+2. `three/textures.ts` (or a small `three/models.ts`): preload the GLB alongside the textures via `GLTFLoader` from `three/examples/jsm/loaders/GLTFLoader` — same `Promise.all` boot path, same graceful-fallback policy: missing/failed GLB → `console.warn`, S23 sphere unchanged, no crash (doc 08).
+3. `three/buildScene.ts`: for the ISS, insert `gltf.scene` instead of the sphere — normalized so its bounding box fits the sphere's footprint (~0.9 units across, doc 05); set `userData.bodyId = "iss"` on **every descendant mesh** (the Picker raycasts children).
+4. Orientation: the tidally-locked spin from S23 already provides the LVLH attitude; apply at most one fixed corrective rotation on the model root so the solar arrays/truss read correctly, verified visually once (same "flip once" rule as doc 05 view offsets).
+5. Perf check: no visible fps drop in focused Earth view on mobile (and on the Pi headless-chromium setup).
+
+**Acceptance**
+- [ ] Focused Earth view: the recognizable ISS (truss + solar arrays) orbits Earth; hover highlight and click-to-focus work on every part of the model.
+- [ ] Delete/rename the GLB → app still boots, ISS renders as the S23 sphere, one console.warn, nothing else changes.
+- [ ] GLB committed, ≤ 15 k triangles / ≤ 2 MB; source + license documented in doc 08 (+ README if attribution required); still zero non-localhost requests from the frontend.
+- [ ] No fps regression in focused Earth view.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
