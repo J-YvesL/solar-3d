@@ -43,7 +43,7 @@ export function applyEarthNightLights(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
         float cosSun = dot(normalize(vWorldNormal), uSunDirection);
-        float nightMask = 1.0 - smoothstep(-0.10, 0.10, cosSun);
+        float nightMask = 1.0 - smoothstep(0.0, 0.20, cosSun);
         totalEmissiveRadiance += texture2D(uNightMap, vMapUv).rgb * nightMask * ${NIGHT_INTENSITY.toFixed(1)};`,
       );
   };

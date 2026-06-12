@@ -43,11 +43,11 @@ Rules of engagement:
 2. Visual tuning allowed on the upper edge only, within `[0.15, 0.30]` (lower edge stays `0.0` — that is the fix). If the final value differs from `0.20`, update doc 05 in the same commit.
 
 **Acceptance**
-- [ ] Focused Earth: no darker stripe along the terminator — brightness transitions monotonically from lit day to city-lit night (verify visually + headless chromium screenshot).
-- [ ] City lights at full intensity over the entire night hemisphere; they fade out across the day-side twilight, no hard cut.
-- [ ] Day side unchanged; other planets' terminators unchanged; no shader compile warnings.
-- [ ] No backend change: test 11b untouched and green (the mask is display-only).
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Focused Earth: no darker stripe along the terminator — brightness transitions monotonically from lit day to city-lit night (verify visually + headless chromium screenshot).
+- [x] City lights at full intensity over the entire night hemisphere; they fade out across the day-side twilight, no hard cut.
+- [x] Day side unchanged; other planets' terminators unchanged; no shader compile warnings.
+- [x] No backend change: test 11b untouched and green (the mask is display-only).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 
