@@ -17,7 +17,7 @@ const LOCALIZED: Record<string, Record<string, { name: string; info: { descripti
   de,
 };
 
-bodiesRouter.get("/", (req, res) => {
+bodiesRouter.get("/", async (req, res) => {
   const rawDate = req.query["date"];
   const dateStr = typeof rawDate === "string" ? rawDate : undefined;
 
@@ -42,7 +42,7 @@ bodiesRouter.get("/", (req, res) => {
 
   const lang = langStr && VALID_LANGS.has(langStr) ? langStr : "en";
 
-  let bodies = computeBodyStates(date);
+  let bodies = await computeBodyStates(date);
 
   if (lang !== "en") {
     const localized = LOCALIZED[lang] ?? {};

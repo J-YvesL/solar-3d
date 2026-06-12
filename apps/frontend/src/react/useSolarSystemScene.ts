@@ -25,12 +25,12 @@ export function useSolarSystemScene(model: SolarSystemModel | null, layout: Layo
     sceneRef.current?.focusBody(bodyId, layoutRef.current);
   }, []);
 
-  // Navigate up one level: moon → parent planet → system view (doc 06).
+  // Navigate up one level: moon/satellite → parent planet → system view (doc 06).
   const goBack = useCallback(() => {
     const currentId = selectedIdRef.current;
     if (currentId !== null && modelRef.current !== null) {
       const body = modelRef.current.byId(currentId);
-      if (body?.type === "moon" && body.parentId !== null) {
+      if ((body?.type === "moon" || body?.type === "satellite") && body.parentId !== null) {
         focus(body.parentId);
         return;
       }

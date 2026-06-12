@@ -7,13 +7,14 @@ import { localizedBodies as it_ } from "./localized/it";
 import { localizedBodies as de } from "./localized/de";
 
 describe("bodies data", () => {
-  it("12: exactly 29 bodies, unique ids, correct type counts", () => {
-    expect(BODIES).toHaveLength(29);
+  it("12: exactly 30 bodies, unique ids, correct type counts", () => {
+    expect(BODIES).toHaveLength(30);
     const ids = BODIES.map((b) => b.id);
-    expect(new Set(ids).size).toBe(29);
+    expect(new Set(ids).size).toBe(30);
     expect(BODIES.filter((b) => b.type === "star")).toHaveLength(1);
     expect(BODIES.filter((b) => b.type === "planet")).toHaveLength(8);
     expect(BODIES.filter((b) => b.type === "moon")).toHaveLength(20);
+    expect(BODIES.filter((b) => b.type === "satellite")).toHaveLength(1);
   });
 
   it("13: parent links valid, moon counts per planet correct", () => {
@@ -37,6 +38,10 @@ describe("bodies data", () => {
     expect(moonCounts["saturn"]).toBe(7);
     expect(moonCounts["uranus"]).toBe(5);
     expect(moonCounts["neptune"]).toBe(1);
+    // ISS is a satellite, not a moon (S23)
+    const iss = BODIES.find((b) => b.id === "iss");
+    expect(iss?.type).toBe("satellite");
+    expect(iss?.parentId).toBe("earth");
   });
 
   it("14: every body has info entry, colors match #RRGGBB format", () => {
@@ -75,7 +80,7 @@ describe("bodies data", () => {
     }
   });
 
-  it("21: localized files cover all 29 ids with non-empty fields and correct names (doc 09)", () => {
+  it("21: localized files cover all 30 ids with non-empty fields and correct names (doc 09)", () => {
     const expectedNames: Record<string, { fr: string; es: string; it: string; de: string }> = {
       sun:       { fr: "Soleil",   es: "Sol",      it: "Sole",     de: "Sonne"   },
       mercury:   { fr: "Mercure",  es: "Mercurio", it: "Mercurio", de: "Merkur"  },
@@ -106,6 +111,7 @@ describe("bodies data", () => {
       titania:   { fr: "Titania",  es: "Titania",  it: "Titania",  de: "Titania" },
       oberon:    { fr: "Obéron",   es: "Oberón",   it: "Oberon",   de: "Oberon"  },
       triton:    { fr: "Triton",   es: "Tritón",   it: "Tritone",  de: "Triton"  },
+      iss:       { fr: "ISS",      es: "ISS",      it: "ISS",      de: "ISS"     },
     };
 
     const langs = [
@@ -117,7 +123,7 @@ describe("bodies data", () => {
 
     for (const { code, data } of langs) {
       const ids = BODIES.map((b) => b.id);
-      expect(Object.keys(data), `${code}: wrong id count`).toHaveLength(29);
+      expect(Object.keys(data), `${code}: wrong id count`).toHaveLength(30);
       for (const id of ids) {
         const entry = data[id];
         expect(entry, `${code}: missing entry for ${id}`).toBeDefined();

@@ -272,4 +272,15 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "Tritons retrograde Umlaufbahn bedeutet, dass Neptuns Gezeiten es letztendlich zerreißen werden.",
     },
   },
+  iss: {
+    name: "ISS",
+    info: {
+      description:
+        "Die Internationale Raumstation, ein fußballfeldgroßes Forschungslabor, das die Erde alle ~92 Minuten umkreist und seit November 2000 ununterbrochen bewohnt ist.",
+      composition:
+        "Aluminiummodule, Stahlgitterträger-Segmente und acht Solarzellenflügel; ~915 m³ Druckvolumen",
+      funFact:
+        "Die ISS reist mit etwa 28 000 km/h — ihre Besatzung erlebt täglich 16 Sonnenauf- und -untergänge.",
+    },
+  },
 };

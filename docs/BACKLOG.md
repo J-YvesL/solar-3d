@@ -152,13 +152,13 @@ Rules of engagement:
 7. Tests: doc 02 tests 22–25 (TLE parsing, derived elements, route, offline fallback); amend tests 12/13/21 (30 bodies, 1 satellite, ISS parent earth, 30 localized ids); frontend scaling + i18n completeness tests.
 
 **Acceptance**
-- [ ] Focused Earth view: the ISS orbits between the surface and the Moon (display orbit 3.5 units), completing one revolution in ~92 real minutes; its orbital plane is tilted ~51.6°.
-- [ ] Clicking the ISS (or opening `/iss`) focuses it: badge `satellite` (localized), real period (~1.5 h), distance from Earth; Back → Earth → system.
-- [ ] `curl localhost:3001/api/bodies | jq '.bodies[] | select(.id=="iss")'` → plausible live values (`orbitalAngleDeg` ∈ [0,360), `inclinationDeg` ≈ 51.6, `semiMajorAxisKm` ≈ 6 800); two calls a few minutes apart show the angle advancing at ~3.9°/min.
-- [ ] Backend started **without network**: ISS served from the committed TLE snapshot, no error, no 500.
-- [ ] CelesTrak is hit at most once per 24 h per backend process (verify via log/mock), and never by the frontend.
-- [ ] NavMenu unchanged (Sun + 8 planets); the Moon's display orbit is **unchanged** (~5.5 units).
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Focused Earth view: the ISS orbits between the surface and the Moon (display orbit 3.5 units), completing one revolution in ~92 real minutes; its orbital plane is tilted ~51.6°.
+- [x] Clicking the ISS (or opening `/iss`) focuses it: badge `satellite` (localized), real period (~1.5 h), distance from Earth; Back → Earth → system.
+- [x] `curl localhost:3001/api/bodies | jq '.bodies[] | select(.id=="iss")'` → plausible live values (`orbitalAngleDeg` ∈ [0,360), `inclinationDeg` ≈ 51.6, `semiMajorAxisKm` ≈ 6 800); two calls a few minutes apart show the angle advancing at ~3.9°/min.
+- [x] Backend started **without network**: ISS served from the committed TLE snapshot, no error, no 500.
+- [x] CelesTrak is hit at most once per 24 h per backend process (verify via log/mock), and never by the frontend.
+- [x] NavMenu unchanged (Sun + 8 planets); the Moon's display orbit is **unchanged** (~5.5 units).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 

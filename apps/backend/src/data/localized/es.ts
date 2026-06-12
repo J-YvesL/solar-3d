@@ -271,4 +271,15 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "La órbita retrógrada de Tritón significa que las mareas de Neptuno acabarán por desgarrarlo.",
     },
   },
+  iss: {
+    name: "ISS",
+    info: {
+      description:
+        "La Estación Espacial Internacional, un laboratorio de investigación del tamaño de un campo de fútbol americano en órbita alrededor de la Tierra cada ~92 minutos, habitada continuamente desde noviembre de 2000.",
+      composition:
+        "Módulos de aluminio, segmentos de celosía de acero y ocho alas de paneles solares; ~915 m³ de volumen presurizado",
+      funFact:
+        "La ISS viaja a unos 28 000 km/h — su tripulación ve 16 amaneceres y atardeceres cada día.",
+    },
+  },
 };

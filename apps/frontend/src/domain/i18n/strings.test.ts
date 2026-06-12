@@ -7,7 +7,7 @@ const ALL_KEYS: UiKey[] = [
   "localTime", "composition", "radius", "orbitalPeriod", "dayLength",
   "distanceFromSun", "distanceFromParent", "moons",
   "hours", "days", "years",
-  "typeStar", "typePlanet", "typeMoon",
+  "typeStar", "typePlanet", "typeMoon", "typeSatellite",
   "madeBy",
 ];
 

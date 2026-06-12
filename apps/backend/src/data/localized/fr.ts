@@ -270,4 +270,15 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "L'orbite rétrograde de Triton signifie que les marées de Neptune finiront par le déchirer.",
     },
   },
+  iss: {
+    name: "ISS",
+    info: {
+      description:
+        "La Station spatiale internationale, un laboratoire de recherche de la taille d'un terrain de football en orbite autour de la Terre toutes les ~92 minutes, habitée en continu depuis novembre 2000.",
+      composition:
+        "Modules en aluminium, segments de poutre en acier et huit ailes de panneaux solaires ; ~915 m³ de volume pressurisé",
+      funFact:
+        "L'ISS voyage à environ 28 000 km/h — son équipage voit 16 levers et couchers de soleil chaque jour.",
+    },
+  },
 };

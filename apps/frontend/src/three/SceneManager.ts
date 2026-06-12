@@ -197,9 +197,19 @@ export class SceneManager {
       for (const moon of moons) {
         const moonOrbitRadius = moon.orbitDisplayRadius ?? 0;
 
+        // S23: satellites get a nodeGroup (ascending-node yaw) wrapping the orbit group.
+        // Moons ignore the node longitude — documented simplification (doc 05).
+        let orbitContainer: THREE.Group = moonsGroup;
+        if (moon.type === "satellite" && moon.nodeLonDeg !== null) {
+          const nodeGroup = new THREE.Group();
+          nodeGroup.rotation.y = degToRad(moon.nodeLonDeg);
+          moonsGroup.add(nodeGroup);
+          orbitContainer = nodeGroup;
+        }
+
         const moonOrbitGroup = new THREE.Group();
         moonOrbitGroup.rotation.x = degToRad(moon.inclinationDeg ?? 0);
-        moonsGroup.add(moonOrbitGroup);
+        orbitContainer.add(moonOrbitGroup);
         moonOrbitGroup.add(createOrbitLine(moonOrbitRadius, 0.25));
 
         const moonAnchor = new THREE.Object3D();
@@ -268,7 +278,7 @@ export class SceneManager {
       const body = this.model.byId(id);
       if (body === undefined) continue;
 
-      if (body.type === "moon" && body.parentId !== null) {
+      if ((body.type === "moon" || body.type === "satellite") && body.parentId !== null) {
         const mg = this.moonsGroupMap.get(body.parentId);
         if (mg !== undefined && !mg.visible) continue;
       }
@@ -304,20 +314,20 @@ export class SceneManager {
 
   private updatePickables(focusedId: string | null): void {
     const meshes: THREE.Mesh[] = [];
-    // Resolve which planet's moons should be pickable (handles moon-is-focused case)
+    // Resolve which planet's moons/satellites are pickable (handles moon/satellite-is-focused case)
     let moonParentId: string | null = null;
     if (focusedId !== null) {
       const focused = this.model.byId(focusedId);
       if (focused?.type === "planet") {
         moonParentId = focusedId;
-      } else if (focused?.type === "moon") {
+      } else if (focused?.type === "moon" || focused?.type === "satellite") {
         moonParentId = focused.parentId;
       }
     }
     for (const [id, entry] of this.sceneBodyMap) {
       const body = this.model.byId(id);
       if (body === undefined) continue;
-      if (body.type === "moon") {
+      if (body.type === "moon" || body.type === "satellite") {
         if (body.parentId === moonParentId) meshes.push(entry.mesh);
       } else {
         meshes.push(entry.mesh);
@@ -346,20 +356,30 @@ export class SceneManager {
     if (this.cameraDirector.focusedBodyId === bodyId) return;
 
     const prevId = this.cameraDirector.focusedBodyId;
-    const newBody = this.model.byId(bodyId);
 
-    // Hide moons of previously focused planet, unless focusing one of its moons
-    if (prevId !== null) {
-      const isMoonOfPrev = newBody?.type === "moon" && newBody.parentId === prevId;
-      if (!isMoonOfPrev) {
-        const prev = this.moonsGroupMap.get(prevId);
-        if (prev !== undefined) prev.visible = false;
-      }
+    // Resolve the owning-planet id for moonsGroup management.
+    // For moons/satellites their planet is the parentId; for planets it's themselves.
+    const ownerPlanetId = (id: string | null): string | null => {
+      if (id === null) return null;
+      const b = this.model.byId(id);
+      if (b === undefined) return null;
+      if (b.type === "planet") return id;
+      if ((b.type === "moon" || b.type === "satellite") && b.parentId !== null) return b.parentId;
+      return null;
+    };
+
+    const prevPlanetId = ownerPlanetId(prevId);
+    const newPlanetId = ownerPlanetId(bodyId);
+
+    // Hide the previous planet's moonsGroup when moving to a different planet context
+    if (prevPlanetId !== null && prevPlanetId !== newPlanetId) {
+      const prev = this.moonsGroupMap.get(prevPlanetId);
+      if (prev !== undefined) prev.visible = false;
     }
 
-    // Show moons of newly focused planet (if focusing a moon, parent moons already visible)
-    if (newBody?.type === "planet") {
-      const mg = this.moonsGroupMap.get(bodyId);
+    // Show the new planet's moonsGroup (planet focus, or moon/satellite focus)
+    if (newPlanetId !== null) {
+      const mg = this.moonsGroupMap.get(newPlanetId);
       if (mg !== undefined) mg.visible = true;
     }
 
@@ -371,7 +391,14 @@ export class SceneManager {
   resetView(): void {
     const prevId = this.cameraDirector.focusedBodyId;
     if (prevId !== null) {
-      const mg = this.moonsGroupMap.get(prevId);
+      // For moons/satellites, hide the parent planet's moonsGroup
+      const prevBody = this.model.byId(prevId);
+      const planetId =
+        (prevBody?.type === "moon" || prevBody?.type === "satellite") &&
+        prevBody?.parentId !== null
+          ? prevBody.parentId
+          : prevId;
+      const mg = this.moonsGroupMap.get(planetId);
       if (mg !== undefined) mg.visible = false;
     }
     this.updatePickables(null);

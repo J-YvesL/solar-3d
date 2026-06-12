@@ -1,4 +1,4 @@
-export type BodyType = "star" | "planet" | "moon";
+export type BodyType = "star" | "planet" | "moon" | "satellite";
 
 export interface BodyInfo {
   description: string;
@@ -21,6 +21,7 @@ export interface BodyDto {
   semiMajorAxisKm: number | null;
   eccentricity: number | null;
   inclinationDeg: number | null;
+  nodeLonDeg: number | null;   // ascending-node longitude for satellites (from TLE); null for all other bodies
   orbitalPeriodDays: number | null;
   // state at epochIso
   orbitalAngleDeg: number | null;

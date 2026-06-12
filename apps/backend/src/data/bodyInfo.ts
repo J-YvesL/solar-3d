@@ -173,4 +173,12 @@ export const bodyInfo: Record<string, BodyInfo> = {
     composition: "Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere",
     funFact: "Triton's retrograde orbit means Neptune's tides will eventually tear it apart.",
   },
+  iss: {
+    description:
+      "The International Space Station, a football-field-sized research laboratory orbiting Earth every ~92 minutes, continuously inhabited since November 2000.",
+    composition:
+      "Aluminium modules, steel truss segments and eight solar array wings; ~915 m³ of pressurized volume",
+    funFact:
+      "The ISS travels at about 28 000 km/h — its crew sees 16 sunrises and sunsets every day.",
+  },
 };

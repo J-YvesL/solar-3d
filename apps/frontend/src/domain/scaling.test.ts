@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, DISPLAY_SIZE_FACTOR } from "./scaling";
+import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, satelliteOrbitDisplayRadius, DISPLAY_SIZE_FACTOR } from "./scaling";
 
 describe("displayRadius", () => {
   it("sun → 12", () => expect(displayRadius(695700, "star")).toBe(12));
@@ -20,6 +20,8 @@ describe("displayRadius", () => {
   it("mimas → 0.62", () => expect(displayRadius(198.2, "moon")).toBeCloseTo(0.62, 2));
   it("phobos clamped to 0.45", () => expect(displayRadius(11.1, "moon")).toBe(0.45));
   it("deimos clamped to 0.45", () => expect(displayRadius(6.2, "moon")).toBe(0.45));
+  it("iss clamped to 0.45 (satellite type, radius 0.055 km)", () =>
+    expect(displayRadius(0.055, "satellite")).toBe(0.45));
 });
 
 // orbitDisplayRadius is a unit test of the math; inputs are Table 1 au values (doc 03)
@@ -41,4 +43,11 @@ describe("moonOrbitDisplayRadius — Jupiter moons (parent displayRadius ≈ 6.5
   it("europa (index 1) → 21.5", () => expect(moonOrbitDisplayRadius(parent, 1)).toBeCloseTo(21.5, 1));
   it("ganymede (index 2) → 28.7", () => expect(moonOrbitDisplayRadius(parent, 2)).toBeCloseTo(28.7, 1));
   it("callisto (index 3) → 35.9", () => expect(moonOrbitDisplayRadius(parent, 3)).toBeCloseTo(35.9, 1));
+});
+
+describe("satelliteOrbitDisplayRadius — ISS (S23)", () => {
+  it("iss around Earth (parent 2.50) → 3.5", () =>
+    expect(satelliteOrbitDisplayRadius(2.5)).toBeCloseTo(3.5, 1));
+  it("Moon display orbit unchanged at index 0 → 5.5 (satellite excluded from moon ranking)", () =>
+    expect(moonOrbitDisplayRadius(2.5, 0)).toBeCloseTo(5.5, 1));
 });

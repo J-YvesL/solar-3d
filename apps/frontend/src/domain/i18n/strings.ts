@@ -20,6 +20,7 @@ export type UiKey =
   | "typeStar"
   | "typePlanet"
   | "typeMoon"
+  | "typeSatellite"
   | "madeBy";
 
 type Dict = Record<UiKey, string>;
@@ -45,6 +46,7 @@ const dicts: Record<Locale, Dict> = {
     typeStar: "star",
     typePlanet: "planet",
     typeMoon: "moon",
+    typeSatellite: "satellite",
     madeBy: "Made by {author} with ❤️",
   },
   fr: {
@@ -67,6 +69,7 @@ const dicts: Record<Locale, Dict> = {
     typeStar: "étoile",
     typePlanet: "planète",
     typeMoon: "lune",
+    typeSatellite: "satellite",
     madeBy: "Réalisé par {author} avec ❤️",
   },
   es: {
@@ -89,6 +92,7 @@ const dicts: Record<Locale, Dict> = {
     typeStar: "estrella",
     typePlanet: "planeta",
     typeMoon: "luna",
+    typeSatellite: "satélite",
     madeBy: "Hecho por {author} con ❤️",
   },
   it: {
@@ -111,6 +115,7 @@ const dicts: Record<Locale, Dict> = {
     typeStar: "stella",
     typePlanet: "pianeta",
     typeMoon: "luna",
+    typeSatellite: "satellite",
     madeBy: "Realizzato da {author} con ❤️",
   },
   de: {
@@ -133,6 +138,7 @@ const dicts: Record<Locale, Dict> = {
     typeStar: "Stern",
     typePlanet: "Planet",
     typeMoon: "Mond",
+    typeSatellite: "Satellit",
     madeBy: "Erstellt von {author} mit ❤️",
   },
 };

@@ -16,6 +16,7 @@ function makeBody(id: string, overrides: Partial<Body> = {}): Body {
     semiMajorAxisKm: 100_000_000,
     eccentricity: 0,
     inclinationDeg: 0,
+    nodeLonDeg: null,
     orbitalPeriodDays: 365,
     orbitalAngleDeg: 0,
     rotationAngleDeg: 0,

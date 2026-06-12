@@ -38,6 +38,7 @@ function humanizeRotation(hours: number, locale: Locale): string {
 function typeLabel(type: BodyType, locale: Locale): string {
   if (type === "star") return t(locale, "typeStar");
   if (type === "planet") return t(locale, "typePlanet");
+  if (type === "satellite") return t(locale, "typeSatellite");
   return t(locale, "typeMoon");
 }
 
@@ -69,9 +70,13 @@ function FactRow({ label, value }: { label: string; value: string }) {
 }
 
 export function InfoPanel({ body, model, locale }: Props) {
-  const moons = body.type === "planet" ? model.childrenOf(body.id) : [];
+  // Only type === "moon" children shown in the Moons row — satellites are excluded (S23)
+  const moons =
+    body.type === "planet"
+      ? model.childrenOf(body.id).filter((b) => b.type === "moon")
+      : [];
   const distanceLabel =
-    body.type === "moon" && body.parentId !== null
+    (body.type === "moon" || body.type === "satellite") && body.parentId !== null
       ? t(locale, "distanceFromParent", {
           parent: model.byId(body.parentId)?.name ?? body.parentId,
         })

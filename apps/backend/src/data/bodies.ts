@@ -24,7 +24,7 @@ export interface StaticBody {
   meanLongitudeAtJ2000Deg: number | null;
 }
 
-/** All 29 bodies: sun, planets by distance, then moons grouped by parent. */
+/** All 30 bodies: sun, planets by distance, then moons grouped by parent, then the ISS. */
 export const BODIES: StaticBody[] = [
   // ── Sun ──────────────────────────────────────────────────────────────────
   {
@@ -253,5 +253,17 @@ export const BODIES: StaticBody[] = [
     color: "#C8C2D6",
     semiMajorAxisKm: 354759, eccentricity: 0, inclinationDeg: 157.0,
     orbitalPeriodDays: 5.8770, meanLongitudeAtJ2000Deg: 64,
+  },
+
+  // ── ISS (satellite, S23) ──────────────────────────────────────────────────
+  // Orbit elements are TLE-derived at request time (doc 03 Table 7 / doc 02 step E).
+  // rotationPeriodHours below is a placeholder; the real value is set from the TLE.
+  {
+    id: "iss", name: "ISS", type: "satellite", parentId: "earth",
+    radiusKm: 0.055, rotationPeriodHours: 1.5483, rotationAtJ2000Deg: 0,
+    axialTiltDeg: 0, poleEclipticLonDeg: 0,
+    color: "#C9D1D9",
+    semiMajorAxisKm: null, eccentricity: 0, inclinationDeg: null,
+    orbitalPeriodDays: null, meanLongitudeAtJ2000Deg: null,
   },
 ];

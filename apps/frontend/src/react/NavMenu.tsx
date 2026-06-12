@@ -7,13 +7,16 @@ interface Props {
 }
 
 export function NavMenu({ model, selectedBodyId, focus }: Props) {
-  const items = model.bodies.filter((b) => b.type !== "moon");
+  const items = model.bodies.filter((b) => b.type === "star" || b.type === "planet");
 
-  // Highlighted item: the selected body itself, or its parent planet for moons.
+  // Highlighted item: the selected body itself, or its parent planet for moons/satellites.
   let activeId: string | null = null;
   if (selectedBodyId !== null) {
     const body = model.byId(selectedBodyId);
-    activeId = body?.type === "moon" && body.parentId !== null ? body.parentId : selectedBodyId;
+    activeId =
+      (body?.type === "moon" || body?.type === "satellite") && body.parentId !== null
+        ? body.parentId
+        : selectedBodyId;
   }
 
   return (

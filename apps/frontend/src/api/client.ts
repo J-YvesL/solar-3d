@@ -1,5 +1,5 @@
 import type { BodiesResponse, BodyDto } from "@solar/shared";
-import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius } from "../domain/scaling";
+import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, satelliteOrbitDisplayRadius } from "../domain/scaling";
 import type { Locale } from "../domain/i18n/locale";
 import type { Body } from "../domain/types";
 
@@ -32,7 +32,8 @@ export function mapBodies(response: BodiesResponse): Body[] {
     displayRadiusById.set(dto.id, displayRadius(dto.radiusKm, dto.type, dto.id));
   }
 
-  // Pre-compute moon ordering per parent (sorted by semiMajorAxisKm ascending = innermost first)
+  // Pre-compute moon ordering per parent — satellites excluded from this ranking (S23 doc 05):
+  // the ISS (a ≈ 6 791 km) must not steal index 0 from the Moon (a = 384 400 km).
   const moonsByParent = new Map<string, BodyDto[]>();
   for (const dto of dtos) {
     if (dto.type === "moon" && dto.parentId !== null) {
@@ -59,6 +60,9 @@ export function mapBodies(response: BodiesResponse): Body[] {
       const parentDr = displayRadiusById.get(dto.parentId) ?? 1;
       const idx = moonIndexById.get(dto.id) ?? 0;
       orbitRadius = moonOrbitDisplayRadius(parentDr, idx);
+    } else if (dto.type === "satellite" && dto.parentId !== null) {
+      const parentDr = displayRadiusById.get(dto.parentId) ?? 1;
+      orbitRadius = satelliteOrbitDisplayRadius(parentDr);
     }
 
     return { ...dto, displayRadius: dr, orbitDisplayRadius: orbitRadius };

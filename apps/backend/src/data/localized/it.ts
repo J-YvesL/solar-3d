@@ -274,4 +274,15 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "L'orbita retrograda di Tritone significa che le maree di Nettuno alla fine lo disgregheranno.",
     },
   },
+  iss: {
+    name: "ISS",
+    info: {
+      description:
+        "La Stazione Spaziale Internazionale, un laboratorio di ricerca grande come un campo da football americano in orbita attorno alla Terra ogni ~92 minuti, abitata continuamente da novembre 2000.",
+      composition:
+        "Moduli in alluminio, segmenti di traliccio in acciaio e otto ali di pannelli solari; ~915 m³ di volume pressurizzato",
+      funFact:
+        "L'ISS viaggia a circa 28 000 km/h — il suo equipaggio vede 16 albe e tramonti ogni giorno.",
+    },
+  },
 };

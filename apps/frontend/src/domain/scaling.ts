@@ -24,7 +24,18 @@ export function orbitDisplayRadius(semiMajorAxisAu: number): number {
  * Scaled orbit radius for a moon in focused view.
  * @param parentDisplayRadius Display radius of the parent planet.
  * @param index Rank of the moon ordered by real semiMajorAxisKm (0 = innermost).
+ * S23: only type === "moon" bodies contribute to this ranking; satellites are excluded
+ * so the ISS (a = 6 791 km) doesn't steal index 0 from the Moon (a = 384 400 km).
  */
 export function moonOrbitDisplayRadius(parentDisplayRadius: number, index: number): number {
   return parentDisplayRadius * (2.2 + index * 1.1);
+}
+
+/**
+ * Scaled orbit radius for a satellite in focused view (S23).
+ * Low orbit hugging the parent, below every moon.
+ * Earth: 2.5 × 1.4 = 3.5 units.
+ */
+export function satelliteOrbitDisplayRadius(parentDisplayRadius: number): number {
+  return parentDisplayRadius * 1.4;
 }
