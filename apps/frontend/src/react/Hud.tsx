@@ -7,7 +7,7 @@ interface Props {
   locale: Locale;
 }
 
-/** "2.0.0" → "v2.0" */
+/** "2.1.0" → "v2.1" */
 function displayVersion(raw: string): string {
   const parts = raw.split(".");
   return `v${parts[0] ?? "0"}.${parts[1] ?? "0"}`;
