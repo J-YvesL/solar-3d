@@ -23,10 +23,10 @@ Rules of engagement:
 3. `domain/scaling.test.ts`: moon → **0.74 ± 0.05**; all other expected values of doc 05 unchanged (earth 2.50, phobos/deimos still clamped at 0.45); without `id`, the factor does not apply.
 
 **Acceptance**
-- [ ] Scaling tests green, moon ≈ 0.74 (= 1.49 × 0.5).
-- [ ] Focused Earth view: the Moon's diameter is visually ~half of before, clearly smaller than Earth (~0.30 of Earth's display radius).
-- [ ] Moon orbit radius unchanged (`moonOrbitDisplayRadius` untouched — ~5.5 units); other moons (Io, Titan…) unchanged.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Scaling tests green, moon ≈ 0.74 (= 1.49 × 0.5).
+- [x] Focused Earth view: the Moon's diameter is visually ~half of before, clearly smaller than Earth (~0.30 of Earth's display radius).
+- [x] Moon orbit radius unchanged (`moonOrbitDisplayRadius` untouched — ~5.5 units); other moons (Io, Titan…) unchanged.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 

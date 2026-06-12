@@ -28,7 +28,7 @@ export function mapBodies(response: BodiesResponse): Body[] {
   // Pre-compute display radii by id
   const displayRadiusById = new Map<string, number>();
   for (const dto of dtos) {
-    displayRadiusById.set(dto.id, displayRadius(dto.radiusKm, dto.type));
+    displayRadiusById.set(dto.id, displayRadius(dto.radiusKm, dto.type, dto.id));
   }
 
   // Pre-compute moon ordering per parent (sorted by semiMajorAxisKm ascending = innermost first)
@@ -49,7 +49,7 @@ export function mapBodies(response: BodiesResponse): Body[] {
   }
 
   return dtos.map((dto): Body => {
-    const dr = displayRadiusById.get(dto.id) ?? displayRadius(dto.radiusKm, dto.type);
+    const dr = displayRadiusById.get(dto.id) ?? displayRadius(dto.radiusKm, dto.type, dto.id);
 
     let orbitRadius: number | null = null;
     if (dto.type === "planet" && dto.semiMajorAxisKm !== null) {

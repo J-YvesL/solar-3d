@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius } from "./scaling";
+import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, DISPLAY_SIZE_FACTOR } from "./scaling";
 
 describe("displayRadius", () => {
   it("sun → 12", () => expect(displayRadius(695700, "star")).toBe(12));
@@ -11,7 +11,9 @@ describe("displayRadius", () => {
   it("saturn → 6.06", () => expect(displayRadius(58232, "planet")).toBeCloseTo(6.06, 2));
   it("uranus → 4.34", () => expect(displayRadius(25362, "planet")).toBeCloseTo(4.34, 2));
   it("neptune → 4.29", () => expect(displayRadius(24622, "planet")).toBeCloseTo(4.29, 2));
-  it("moon → 1.49", () => expect(displayRadius(1737.4, "moon")).toBeCloseTo(1.49, 2));
+  it("moon without id → 1.49 (no factor)", () => expect(displayRadius(1737.4, "moon")).toBeCloseTo(1.49, 2));
+  it("moon with id → 0.74 (DISPLAY_SIZE_FACTOR 0.5)", () => expect(displayRadius(1737.4, "moon", "moon")).toBeCloseTo(0.74, 2));
+  it("DISPLAY_SIZE_FACTOR moon = 0.5", () => expect(DISPLAY_SIZE_FACTOR["moon"]).toBe(0.5));
   it("ganymede → 1.76", () => expect(displayRadius(2634.1, "moon")).toBeCloseTo(1.76, 2));
   it("titan → 1.74", () => expect(displayRadius(2574.7, "moon")).toBeCloseTo(1.74, 2));
   it("triton → 1.35", () => expect(displayRadius(1353.4, "moon")).toBeCloseTo(1.35, 2));
