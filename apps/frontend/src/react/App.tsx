@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Texture } from "three";
 import { fetchBodies, mapBodies } from "../api/client";
+import { resolveLocale } from "../domain/i18n/locale";
+import type { Locale } from "../domain/i18n/locale";
+import { t } from "../domain/i18n/strings";
 import { SolarSystemModel } from "../domain/solarSystemModel";
 import { preloadTextures } from "../three/textures";
 import { CanvasHost } from "./CanvasHost";
@@ -16,6 +19,7 @@ type AppState =
   | { phase: "ready"; model: SolarSystemModel; textures: Map<string, Texture> };
 
 export function App() {
+  const locale: Locale = useMemo(() => resolveLocale(navigator.language), []);
   const [state, setState] = useState<AppState>({ phase: "loading" });
   const [retryKey, setRetryKey] = useState(0);
   const layout = useLayout();
@@ -27,7 +31,7 @@ export function App() {
     setState({ phase: "loading" });
     let cancelled = false;
 
-    Promise.all([fetchBodies(), preloadTextures()])
+    Promise.all([fetchBodies(locale), preloadTextures()])
       .then(([response, textures]) => {
         if (cancelled) return;
         const bodies = mapBodies(response);
@@ -45,14 +49,14 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [retryKey]);
+  }, [retryKey, locale]);
 
   const retry = useCallback(() => setRetryKey((k) => k + 1), []);
 
   if (state.phase === "loading") {
     return (
       <div className="screen-center">
-        <p className="loading-text">Loading the solar system…</p>
+        <p className="loading-text">{t(locale, "loading")}</p>
       </div>
     );
   }
@@ -60,10 +64,10 @@ export function App() {
   if (state.phase === "error") {
     return (
       <div className="screen-center">
-        <p>Could not load the solar system.</p>
+        <p>{t(locale, "errorTitle")}</p>
         <p className="error-detail">{state.message}</p>
         <button className="retry-btn" onClick={retry}>
-          Retry
+          {t(locale, "retry")}
         </button>
       </div>
     );
@@ -81,9 +85,9 @@ export function App() {
         onClear={onClear}
       />
       {selectedBody !== undefined && (
-        <InfoPanel body={selectedBody} model={state.model} />
+        <InfoPanel body={selectedBody} model={state.model} locale={locale} />
       )}
-      <Hud focused={selectedBodyId !== null} onBack={goBack} />
+      <Hud focused={selectedBodyId !== null} onBack={goBack} locale={locale} />
     </>
   );
 }

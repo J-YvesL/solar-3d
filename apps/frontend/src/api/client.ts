@@ -1,5 +1,6 @@
 import type { BodiesResponse, BodyDto } from "@solar/shared";
 import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius } from "../domain/scaling";
+import type { Locale } from "../domain/i18n/locale";
 import type { Body } from "../domain/types";
 
 const AU_KM = 149_597_870.7;
@@ -15,8 +16,8 @@ export class ApiError extends Error {
 }
 
 /** Fetches the current bodies snapshot from the API. Throws ApiError on non-OK response. */
-export async function fetchBodies(): Promise<BodiesResponse> {
-  const response = await fetch("/api/bodies");
+export async function fetchBodies(lang: Locale): Promise<BodiesResponse> {
+  const response = await fetch(`/api/bodies?lang=${lang}`);
   if (!response.ok) throw new ApiError(`HTTP ${response.status}`, response.status);
   return response.json() as Promise<BodiesResponse>;
 }

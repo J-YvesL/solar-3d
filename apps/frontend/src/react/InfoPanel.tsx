@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import type { Body } from "../domain/types";
 import type { SolarSystemModel } from "../domain/solarSystemModel";
+import type { Locale } from "../domain/i18n/locale";
+import { t } from "../domain/i18n/strings";
+import type { BodyType } from "@solar/shared";
 
 interface Props {
   body: Body;
   model: SolarSystemModel;
+  locale: Locale;
 }
 
-const NARROW_NBSP = "\u202F";
+const NARROW_NBSP = " ";
 
 /** Integer with narrow no-break space grouping, e.g. 6371 → "6 371". */
 function formatInteger(n: number): string {
@@ -19,20 +23,26 @@ function round1(n: number): string {
 }
 
 /** Orbital period: < 2 days → hours, < 730 days → days, else years (doc 06). */
-function humanizeOrbitalPeriod(days: number): string {
-  if (days < 2) return `${Math.round(days * 24)} hours`;
-  if (days < 730) return `${Math.round(days)} days`;
-  return `${round1(days / 365.25)} years`;
+function humanizeOrbitalPeriod(days: number, locale: Locale): string {
+  if (days < 2) return `${Math.round(days * 24)} ${t(locale, "hours")}`;
+  if (days < 730) return `${Math.round(days)} ${t(locale, "days")}`;
+  return `${round1(days / 365.25)} ${t(locale, "years")}`;
 }
 
 /** Rotation period: < 48 h → hours, else days (1 decimal) (doc 06). */
-function humanizeRotation(hours: number): string {
-  if (hours < 48) return `${Math.round(hours)} hours`;
-  return `${round1(hours / 24)} days`;
+function humanizeRotation(hours: number, locale: Locale): string {
+  if (hours < 48) return `${Math.round(hours)} ${t(locale, "hours")}`;
+  return `${round1(hours / 24)} ${t(locale, "days")}`;
+}
+
+function typeLabel(type: BodyType, locale: Locale): string {
+  if (type === "star") return t(locale, "typeStar");
+  if (type === "planet") return t(locale, "typePlanet");
+  return t(locale, "typeMoon");
 }
 
 /** Live clock row in the visitor's own time zone — shown for Earth only. */
-function LocalTimeRow() {
+function LocalTimeRow({ locale }: { locale: Locale }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -46,7 +56,7 @@ function LocalTimeRow() {
     second: "2-digit",
   });
 
-  return <FactRow label="Your local time" value={`${time} (${zone})`} />;
+  return <FactRow label={t(locale, "localTime")} value={`${time} (${zone})`} />;
 }
 
 function FactRow({ label, value }: { label: string; value: string }) {
@@ -58,12 +68,14 @@ function FactRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function InfoPanel({ body, model }: Props) {
+export function InfoPanel({ body, model, locale }: Props) {
   const moons = body.type === "planet" ? model.childrenOf(body.id) : [];
   const distanceLabel =
     body.type === "moon" && body.parentId !== null
-      ? `Distance from ${model.byId(body.parentId)?.name ?? "parent"}`
-      : "Distance from Sun";
+      ? t(locale, "distanceFromParent", {
+          parent: model.byId(body.parentId)?.name ?? body.parentId,
+        })
+      : t(locale, "distanceFromSun");
 
   return (
     <div className="info-panel">
@@ -71,24 +83,24 @@ export function InfoPanel({ body, model }: Props) {
         <header className="info-header">
           <h1 className="info-name">{body.name}</h1>
           <span className="info-badge" style={{ color: body.color }}>
-            {body.type}
+            {typeLabel(body.type, locale)}
           </span>
         </header>
 
         <p className="info-description">{body.info.description}</p>
 
         <div className="fact-list">
-          <FactRow label="Composition" value={body.info.composition} />
-          <FactRow label="Radius" value={`${formatInteger(body.radiusKm)} km`} />
+          <FactRow label={t(locale, "composition")} value={body.info.composition} />
+          <FactRow label={t(locale, "radius")} value={`${formatInteger(body.radiusKm)} km`} />
           {body.orbitalPeriodDays !== null && (
             <FactRow
-              label="Orbital period"
-              value={humanizeOrbitalPeriod(body.orbitalPeriodDays)}
+              label={t(locale, "orbitalPeriod")}
+              value={humanizeOrbitalPeriod(body.orbitalPeriodDays, locale)}
             />
           )}
           <FactRow
-            label="Day length (rotation)"
-            value={humanizeRotation(body.rotationPeriodHours)}
+            label={t(locale, "dayLength")}
+            value={humanizeRotation(body.rotationPeriodHours, locale)}
           />
           {body.semiMajorAxisKm !== null && (
             <FactRow
@@ -97,9 +109,9 @@ export function InfoPanel({ body, model }: Props) {
             />
           )}
           {moons.length > 0 && (
-            <FactRow label="Moons" value={moons.map((m) => m.name).join(", ")} />
+            <FactRow label={t(locale, "moons")} value={moons.map((m) => m.name).join(", ")} />
           )}
-          {body.id === "earth" && <LocalTimeRow />}
+          {body.id === "earth" && <LocalTimeRow locale={locale} />}
         </div>
 
         <hr className="info-rule" />

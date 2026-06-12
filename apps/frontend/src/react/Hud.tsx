@@ -1,21 +1,23 @@
+import type { Locale } from "../domain/i18n/locale";
+import { t } from "../domain/i18n/strings";
+
 interface Props {
   focused: boolean;
   onBack: () => void;
+  locale: Locale;
 }
 
-export function Hud({ focused, onBack }: Props) {
+export function Hud({ focused, onBack, locale }: Props) {
   return (
     <>
       {focused && (
         <button className="back-btn" onClick={onBack}>
-          ← Back
+          {t(locale, "back")}
         </button>
       )}
 
       {!focused && (
-        <p className="hint-line">
-          Click a planet to explore — drag to rotate, scroll to zoom
-        </p>
+        <p className="hint-line">{t(locale, "hint")}</p>
       )}
 
       <a

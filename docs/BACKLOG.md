@@ -86,10 +86,10 @@ Rules of engagement:
 5. Texture attribution stays untranslated (license line, docs 08/09).
 
 **Acceptance**
-- [ ] Browser in French (devtools language override or `LANGUAGE=fr chromium`): all UI labels **and** all panel content in French; badge shows `planète`.
-- [ ] Browser in an unsupported language (e.g. `pt`): everything in English, no 400 from the API.
-- [ ] `domain/i18n` tests green; no hardcoded user-visible string left in `react/` (grep).
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green (i18n stays pure — no `navigator` access in `domain/`).
+- [x] Browser in French (devtools language override or `LANGUAGE=fr chromium`): all UI labels **and** all panel content in French; badge shows `planète`.
+- [x] Browser in an unsupported language (e.g. `pt`): everything in English, no 400 from the API.
+- [x] `domain/i18n` tests green; no hardcoded user-visible string left in `react/` (grep).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green (i18n stays pure — no `navigator` access in `domain/`).
 
 ---
 
