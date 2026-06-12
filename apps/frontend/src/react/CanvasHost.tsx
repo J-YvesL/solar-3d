@@ -11,9 +11,10 @@ interface Props {
   gltfs: Map<string, Group>;
   onSelect: (bodyId: string) => void;
   onClear: () => void;
+  onSceneReady: () => void;
 }
 
-export function CanvasHost({ sceneRef, model, textures, gltfs, onSelect, onClear }: Props) {
+export function CanvasHost({ sceneRef, model, textures, gltfs, onSelect, onClear, onSceneReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export function CanvasHost({ sceneRef, model, textures, gltfs, onSelect, onClear
     sceneRef.current = scene;
     const off1 = scene.onBodySelected(onSelect);
     const off2 = scene.onSelectionCleared(onClear);
+    onSceneReady();
     return () => {
       off1();
       off2();

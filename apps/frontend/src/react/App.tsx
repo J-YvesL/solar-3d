@@ -27,7 +27,7 @@ export function App() {
   const [retryKey, setRetryKey] = useState(0);
   const layout = useLayout();
   const model = state.phase === "ready" ? state.model : null;
-  const { sceneRef, selectedBodyId, focus, reset, goBack, onSelect, onClear } =
+  const { sceneRef, selectedBodyId, focus, reset, goBack, onSelect, onClear, onSceneReady } =
     useSolarSystemScene(model, layout);
 
   const validIds = useMemo(
@@ -101,6 +101,7 @@ export function App() {
         gltfs={state.gltfs}
         onSelect={onSelect}
         onClear={onClear}
+        onSceneReady={onSceneReady}
       />
       {selectedBody !== undefined && (
         <InfoPanel body={selectedBody} model={state.model} locale={locale} />

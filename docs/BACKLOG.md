@@ -1,4 +1,4 @@
-# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S24)
+# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S25)
 
 The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
@@ -180,4 +180,25 @@ Rules of engagement:
 - [x] Delete/rename the GLB → app still boots, ISS renders as the S23 sphere, one console.warn, nothing else changes.
 - [x] GLB committed, ≤ 15 k triangles / ≤ 2 MB; source + license documented in doc 08 (+ README if attribution required); still zero non-localhost requests from the frontend.
 - [x] No fps regression in focused Earth view.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S25 — Deep-link camera focus lost on scene remount (bugfix)
+
+**Read first:** doc 04 ("The React ↔ Three bridge" — scene recreation note), doc 06 ("URL routing" — deep link).
+
+**Goal:** Opening a body URL directly (e.g. `/mars`) focuses the body — panel **and** camera — even when the `SceneManager` is recreated after the deep link fired.
+
+**Context:** In dev, React StrictMode mounts/unmounts/remounts `CanvasHost` within the same commit, *after* the parent's deep-link effect ran: the first `SceneManager` received `focusBody`, was destroyed, and its replacement started un-focused while `selectedBodyId` still held the body — panel visible, camera stuck in system view. The same loss occurs whenever the scene is remounted (`model`/`textures` change) while a body is selected.
+
+**Tasks**
+1. `react/useSolarSystemScene.ts`: mirror the selection in a ref updated **synchronously** in `focus`/`reset` (the StrictMode remount fires before the next render); expose `onSceneReady()` that re-applies the current selection to the fresh scene.
+2. `react/CanvasHost.tsx`: call `onSceneReady()` right after constructing the `SceneManager`.
+3. `react/useRoute.ts`: unchanged (the deep-link effect fires once; scene-side re-application is the fix).
+4. Document the pattern in docs 04 and 06.
+
+**Acceptance**
+- [x] `pnpm dev` (StrictMode): opening `/mars` directly lands on Mars focused — camera flight, panel, MARS active in the nav bar; `/titan` focuses Titan with SATURNE highlighted; `/` stays in system view.
+- [x] Verified headless (chromium screenshots) for `/mars`, `/titan`, `/`.
 - [x] `pnpm lint && pnpm typecheck && pnpm test` green.

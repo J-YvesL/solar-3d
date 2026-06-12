@@ -65,7 +65,7 @@ Behavior:
 
 - **Selection change → URL**: `history.pushState(null, "", path)` whenever `selectedBodyId` changes and the path differs from `location.pathname`. No push for the change applied *by* a `popstate` handler (loop guard).
 - **`popstate` → selection**: parse the path; known id → `focus(id)`, `/` or unknown → `reset()`. Browser back/forward therefore replays the focus history with the usual camera animations, no page reload.
-- **Deep link**: on boot, once the model is ready (doc 04 boot sequence), parse `location.pathname`: known id → focus it (normal 1.2 s transition from the system viewpoint), unknown non-`/` → `replaceState("/")`.
+- **Deep link**: on boot, once the model is ready (doc 04 boot sequence), parse `location.pathname`: known id → focus it (normal 1.2 s transition from the system viewpoint), unknown non-`/` → `replaceState("/")`. The deep-link focus must survive a `SceneManager` recreation (StrictMode dev remount, model reload): the camera focus is re-applied to every freshly created scene via `onSceneReady` (doc 04, S25) — the URL/route layer itself fires only once.
 - Back/Escape still walk moon → planet → system (state machine above); the URL follows each step (`/moon` → `/earth` → `/`).
 - The locale is **not** in the URL (doc 09 — browser language only). No query params, no hash.
 - Dev server note: Vite's default SPA fallback already serves `index.html` for `/mars` & co — no config needed.

@@ -10,19 +10,30 @@ export function useSolarSystemScene(model: SolarSystemModel | null, layout: Layo
   layoutRef.current = layout;
   const modelRef = useRef(model);
   modelRef.current = model;
-  // goBack is registered once on mount; read the live selection from a ref so the
-  // stable callback never closes over a stale selectedBodyId.
+  // Live selection mirror, updated synchronously in focus/reset (not at render time):
+  // stable callbacks (goBack, onSceneReady) read it without closing over stale state,
+  // and it is already current when CanvasHost remounts before the next render.
   const selectedIdRef = useRef<string | null>(null);
-  selectedIdRef.current = selectedBodyId;
 
   const reset = useCallback(() => {
+    selectedIdRef.current = null;
     setSelectedBodyId(null);
     sceneRef.current?.resetView();
   }, []);
 
   const focus = useCallback((bodyId: string) => {
+    selectedIdRef.current = bodyId;
     setSelectedBodyId(bodyId);
     sceneRef.current?.focusBody(bodyId, layoutRef.current);
+  }, []);
+
+  // CanvasHost calls this right after constructing a SceneManager. A new scene starts
+  // un-focused even when React still holds a selection (StrictMode's mount/unmount/mount
+  // cycle recreates the scene after the deep link focused the first instance), so
+  // re-apply the current selection to the fresh instance.
+  const onSceneReady = useCallback(() => {
+    const id = selectedIdRef.current;
+    if (id !== null) sceneRef.current?.focusBody(id, layoutRef.current);
   }, []);
 
   // Navigate up one level: moon/satellite → parent planet → system view (doc 06).
@@ -57,5 +68,5 @@ export function useSolarSystemScene(model: SolarSystemModel | null, layout: Layo
   const onSelect = useCallback((bodyId: string) => focus(bodyId), [focus]);
   const onClear = useCallback(() => goBack(), [goBack]);
 
-  return { sceneRef, selectedBodyId, focus, reset, goBack, onSelect, onClear };
+  return { sceneRef, selectedBodyId, focus, reset, goBack, onSelect, onClear, onSceneReady };
 }

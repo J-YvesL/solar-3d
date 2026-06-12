@@ -134,7 +134,7 @@ class SceneManager {
 ### `CanvasHost.tsx`
 
 ```tsx
-function CanvasHost({ model, textures, onSelect, onClear }: Props) {
+function CanvasHost({ model, textures, onSelect, onClear, onSceneReady }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneManager | null>(null);
   useEffect(() => {
@@ -142,6 +142,7 @@ function CanvasHost({ model, textures, onSelect, onClear }: Props) {
     sceneRef.current = scene;
     const off1 = scene.onBodySelected(onSelect);
     const off2 = scene.onSelectionCleared(onClear);
+    onSceneReady();
     return () => { off1(); off2(); scene.dispose(); };
   }, [model, textures]);
   // imperative commands flow through a forwarded ref or returned handle — see useSolarSystemScene
@@ -150,6 +151,8 @@ function CanvasHost({ model, textures, onSelect, onClear }: Props) {
 ```
 
 `useSolarSystemScene.ts` wraps this wiring: it exposes `{ selectedBody, focus(id), reset() }` to `App.tsx` and internally calls `sceneRef.current?.focusBody(...)`. Keep `App.tsx` free of Three.js knowledge.
+
+**Scene recreation re-applies the selection (S25).** A `SceneManager` can be created *while React already holds a non-null `selectedBodyId`*: StrictMode's dev-only mount/unmount/mount cycle recreates the scene right after the deep link focused the first instance, and a `model`/`textures` change remounts it too. A fresh scene always starts un-focused, so `CanvasHost` calls `onSceneReady()` immediately after constructing it, and `useSolarSystemScene` re-applies the current selection there (`focusBody(selectedId, layout)`). The hook mirrors the selection in a ref updated **synchronously inside `focus`/`reset`** (not at render time) — the StrictMode remount fires before the next render, so a render-time mirror would still be stale.
 
 ## Sequence diagrams
 
