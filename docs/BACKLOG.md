@@ -64,11 +64,11 @@ Rules of engagement:
 4. Tests 18–21 of doc 02 (supertest + data completeness).
 
 **Acceptance**
-- [ ] `curl "localhost:3001/api/bodies?lang=fr" | jq '.bodies[] | select(.id=="earth") | .name'` → `"Terre"`, and its `info.description` is French.
-- [ ] `curl "localhost:3001/api/bodies"` → English (default); `?lang=pt` → 400.
-- [ ] Tests 18–21 green: fr content, invalid lang 400, default en, all 4 languages cover 29 ids with non-empty fields.
-- [ ] `?date=` and `?lang=` combine; angular state identical across languages.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] `curl "localhost:3001/api/bodies?lang=fr" | jq '.bodies[] | select(.id=="earth") | .name'` → `"Terre"`, and its `info.description` is French.
+- [x] `curl "localhost:3001/api/bodies"` → English (default); `?lang=pt` → 400.
+- [x] Tests 18–21 green: fr content, invalid lang 400, default en, all 4 languages cover 29 ids with non-empty fields.
+- [x] `?date=` and `?lang=` combine; angular state identical across languages.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 

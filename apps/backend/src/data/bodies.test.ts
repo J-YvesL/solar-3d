@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { BODIES } from "./bodies";
 import { bodyInfo } from "./bodyInfo";
+import { localizedBodies as fr } from "./localized/fr";
+import { localizedBodies as es } from "./localized/es";
+import { localizedBodies as it_ } from "./localized/it";
+import { localizedBodies as de } from "./localized/de";
 
 describe("bodies data", () => {
   it("12: exactly 29 bodies, unique ids, correct type counts", () => {
@@ -68,6 +72,62 @@ describe("bodies data", () => {
     expect(byId.get("uranus")?.poleEclipticLonDeg).toBe(77.65);
     for (const moon of BODIES.filter((b) => b.type === "moon")) {
       expect(moon.poleEclipticLonDeg, `poleEclipticLonDeg must be 0 for ${moon.id}`).toBe(0);
+    }
+  });
+
+  it("21: localized files cover all 29 ids with non-empty fields and correct names (doc 09)", () => {
+    const expectedNames: Record<string, { fr: string; es: string; it: string; de: string }> = {
+      sun:       { fr: "Soleil",   es: "Sol",      it: "Sole",     de: "Sonne"   },
+      mercury:   { fr: "Mercure",  es: "Mercurio", it: "Mercurio", de: "Merkur"  },
+      venus:     { fr: "Vénus",    es: "Venus",    it: "Venere",   de: "Venus"   },
+      earth:     { fr: "Terre",    es: "Tierra",   it: "Terra",    de: "Erde"    },
+      mars:      { fr: "Mars",     es: "Marte",    it: "Marte",    de: "Mars"    },
+      jupiter:   { fr: "Jupiter",  es: "Júpiter",  it: "Giove",    de: "Jupiter" },
+      saturn:    { fr: "Saturne",  es: "Saturno",  it: "Saturno",  de: "Saturn"  },
+      uranus:    { fr: "Uranus",   es: "Urano",    it: "Urano",    de: "Uranus"  },
+      neptune:   { fr: "Neptune",  es: "Neptuno",  it: "Nettuno",  de: "Neptun"  },
+      moon:      { fr: "Lune",     es: "Luna",     it: "Luna",     de: "Mond"    },
+      phobos:    { fr: "Phobos",   es: "Fobos",    it: "Fobos",    de: "Phobos"  },
+      deimos:    { fr: "Déimos",   es: "Deimos",   it: "Deimos",   de: "Deimos"  },
+      io:        { fr: "Io",       es: "Ío",       it: "Io",       de: "Io"      },
+      europa:    { fr: "Europe",   es: "Europa",   it: "Europa",   de: "Europa"  },
+      ganymede:  { fr: "Ganymède", es: "Ganimedes",it: "Ganimede", de: "Ganymed" },
+      callisto:  { fr: "Callisto", es: "Calisto",  it: "Callisto", de: "Kallisto"},
+      mimas:     { fr: "Mimas",    es: "Mimas",    it: "Mimante",  de: "Mimas"   },
+      enceladus: { fr: "Encelade", es: "Encélado", it: "Encelado", de: "Enceladus"},
+      tethys:    { fr: "Téthys",   es: "Tetis",    it: "Teti",     de: "Tethys"  },
+      dione:     { fr: "Dioné",    es: "Dione",    it: "Dione",    de: "Dione"   },
+      rhea:      { fr: "Rhéa",     es: "Rea",      it: "Rea",      de: "Rhea"    },
+      titan:     { fr: "Titan",    es: "Titán",    it: "Titano",   de: "Titan"   },
+      iapetus:   { fr: "Japet",    es: "Jápeto",   it: "Giapeto",  de: "Iapetus" },
+      miranda:   { fr: "Miranda",  es: "Miranda",  it: "Miranda",  de: "Miranda" },
+      ariel:     { fr: "Ariel",    es: "Ariel",    it: "Ariele",   de: "Ariel"   },
+      umbriel:   { fr: "Umbriel",  es: "Umbriel",  it: "Umbriel",  de: "Umbriel" },
+      titania:   { fr: "Titania",  es: "Titania",  it: "Titania",  de: "Titania" },
+      oberon:    { fr: "Obéron",   es: "Oberón",   it: "Oberon",   de: "Oberon"  },
+      triton:    { fr: "Triton",   es: "Tritón",   it: "Tritone",  de: "Triton"  },
+    };
+
+    const langs = [
+      { code: "fr" as const, data: fr },
+      { code: "es" as const, data: es },
+      { code: "it" as const, data: it_ },
+      { code: "de" as const, data: de },
+    ];
+
+    for (const { code, data } of langs) {
+      const ids = BODIES.map((b) => b.id);
+      expect(Object.keys(data), `${code}: wrong id count`).toHaveLength(29);
+      for (const id of ids) {
+        const entry = data[id];
+        expect(entry, `${code}: missing entry for ${id}`).toBeDefined();
+        if (!entry) continue;
+        expect(entry.name, `${code}: empty name for ${id}`).toBeTruthy();
+        expect(entry.info.description, `${code}: empty description for ${id}`).toBeTruthy();
+        expect(entry.info.composition, `${code}: empty composition for ${id}`).toBeTruthy();
+        expect(entry.info.funFact, `${code}: empty funFact for ${id}`).toBeTruthy();
+        expect(entry.name, `${code}: wrong name for ${id}`).toBe(expectedNames[id]?.[code]);
+      }
     }
   });
 });
