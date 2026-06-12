@@ -106,12 +106,12 @@ Rules of engagement:
 4. Edge cases per doc 06: focusing a moon updates the URL (`/moon`, `/titan`) and highlights no menu item (or its parent planet — see doc 06); Back/Escape still walks moon → planet → system with the URL following.
 
 **Acceptance**
-- [ ] Clicking "Mars" in the bar focuses Mars (camera flight + panel) and the URL becomes `/mars`; menu colors match the panel badge colors; order: Sun, Mercury → Neptune.
-- [ ] Opening `http://localhost:5173/saturn` directly deep-links into Saturn focused view after load; `/pluto` lands on `/` (system view).
-- [ ] Browser back/forward replays the focus history (system ↔ planet ↔ moon), no page reload.
-- [ ] Clicking the Moon in the scene → URL `/moon`; Back → `/earth`; second Back → `/`.
-- [ ] Bar usable on mobile (scrollable, doesn't cover the back button or panel) in both orientations.
-- [ ] `domain/routes` tests green; `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Clicking "Mars" in the bar focuses Mars (camera flight + panel) and the URL becomes `/mars`; menu colors match the panel badge colors; order: Sun, Mercury → Neptune.
+- [x] Opening `http://localhost:5173/saturn` directly deep-links into Saturn focused view after load; `/pluto` lands on `/` (system view).
+- [x] Browser back/forward replays the focus history (system ↔ planet ↔ moon), no page reload.
+- [x] Clicking the Moon in the scene → URL `/moon`; Back → `/earth`; second Back → `/`.
+- [x] Bar usable on mobile (scrollable, doesn't cover the back button or panel) in both orientations.
+- [x] `domain/routes` tests green; `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 

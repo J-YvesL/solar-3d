@@ -9,7 +9,9 @@ import { preloadTextures } from "../three/textures";
 import { CanvasHost } from "./CanvasHost";
 import { Hud } from "./Hud";
 import { InfoPanel } from "./InfoPanel";
+import { NavMenu } from "./NavMenu";
 import { useLayout } from "./useLayout";
+import { useRoute } from "./useRoute";
 import { useSolarSystemScene } from "./useSolarSystemScene";
 import "./styles.css";
 
@@ -24,8 +26,21 @@ export function App() {
   const [retryKey, setRetryKey] = useState(0);
   const layout = useLayout();
   const model = state.phase === "ready" ? state.model : null;
-  const { sceneRef, selectedBodyId, goBack, onSelect, onClear } =
+  const { sceneRef, selectedBodyId, focus, reset, goBack, onSelect, onClear } =
     useSolarSystemScene(model, layout);
+
+  const validIds = useMemo(
+    () => new Set(model?.bodies.map((b) => b.id) ?? []) as ReadonlySet<string>,
+    [model],
+  );
+
+  useRoute({
+    validIds,
+    selectedBodyId,
+    focus,
+    reset,
+    isReady: state.phase === "ready",
+  });
 
   useEffect(() => {
     setState({ phase: "loading" });
@@ -77,6 +92,7 @@ export function App() {
 
   return (
     <>
+      <NavMenu model={state.model} selectedBodyId={selectedBodyId} focus={focus} />
       <CanvasHost
         sceneRef={sceneRef}
         model={state.model}

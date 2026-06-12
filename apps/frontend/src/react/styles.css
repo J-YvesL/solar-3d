@@ -77,7 +77,7 @@ body {
 /* Horizontal (desktop) — default. */
 .info-panel {
   position: fixed;
-  top: 0;
+  top: 44px; /* below nav bar */
   right: 0;
   bottom: 0;
   width: 50vw;
@@ -196,11 +196,77 @@ body {
   color: #c4cdda;
 }
 
+/* ── Nav menu ────────────────────────────────────── */
+
+.nav-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: 20;
+  background: rgba(10, 14, 24, 0.6);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-items {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 16px,
+    black calc(100% - 16px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 16px,
+    black calc(100% - 16px),
+    transparent 100%
+  );
+}
+
+.nav-items::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-item {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s;
+  line-height: 1;
+}
+
+.nav-item:hover {
+  color: var(--body-color, #fff);
+}
+
+.nav-item--active {
+  color: var(--body-color, #fff);
+  border-bottom-color: var(--body-color, #fff);
+}
+
 /* ── HUD ──────────────────────────────────────────── */
 
 .back-btn {
   position: fixed;
-  top: 16px;
+  top: 52px; /* below 44px nav bar + 8px gap */
   left: 16px;
   z-index: 10;
   background: rgba(10, 14, 24, 0.82);
