@@ -127,7 +127,7 @@ Rules of engagement:
 3. `react/Hud.tsx` footer (doc 06): `v2.0 · Made by Jynfra with ❤️ · Textures: Solar System Scope (CC BY 4.0)` — `madeBy` via `t()` with `{author}` = the `Jynfra` link (`https://jynfra.com`, `target="_blank" rel="noopener noreferrer"`), attribution link unchanged.
 
 **Acceptance**
-- [ ] Footer shows `v2.0` and the localized credit; clicking `Jynfra` opens https://jynfra.com in a new tab; attribution link still present and working.
-- [ ] Version is single-sourced: bumping the frontend package.json changes the footer with no other edit.
-- [ ] Still zero non-localhost requests at runtime (the link is user-initiated navigation, not an app fetch).
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Footer shows `v2.0` and the localized credit; clicking `Jynfra` opens https://jynfra.com in a new tab; attribution link still present and working.
+- [x] Version is single-sourced: bumping the frontend package.json changes the footer with no other edit.
+- [x] Still zero non-localhost requests at runtime (the link is user-initiated navigation, not an app fetch).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
