@@ -17,7 +17,12 @@ apps/backend/src/
 └── data/
     ├── keplerianElements.ts   # Table 1 of doc 03
     ├── bodies.ts              # Tables 2+3 of doc 03 (29 records)
-    └── bodyInfo.ts            # Table 4 of doc 03
+    ├── bodyInfo.ts            # Table 4 of doc 03 (canonical English)
+    └── localized/             # S19 — one file per non-English language (doc 09)
+        ├── fr.ts              # localizedBodies: Record<id, { name; info }> (29 ids)
+        ├── es.ts
+        ├── it.ts
+        └── de.ts
 ```
 
 `app.ts` / `server.ts` are split so tests can import `createApp()` without opening a port (use `supertest`).
@@ -26,10 +31,12 @@ Also expose `GET /api/health` → `{ "status": "ok" }` (used by S1 acceptance).
 
 ## API contract
 
-### `GET /api/bodies?date=<ISO8601>`
+### `GET /api/bodies?date=<ISO8601>&lang=<code>`
 
 - `date` optional. Default: server time at the moment of the request.
 - Invalid `date` (NaN after `new Date(date).getTime()`) → `400 { "error": "Invalid date" }`.
+- `lang` optional (S19). Allowed values: `en`, `fr`, `es`, `it`, `de` (doc 09). Default: `en`. Any other value → `400 { "error": "Invalid lang" }`.
+- `lang` localizes **only** `name` and the three `info` fields of each body (`en` = the canonical data files; other languages = `data/localized/<lang>.ts`, doc 09). The DTO shape and all numeric/angular fields are identical across languages.
 - Success → `200`, `Content-Type: application/json`:
 
 ```jsonc
@@ -176,6 +183,10 @@ These expected values were produced by a reference implementation of the exact a
 15. `GET /api/bodies` → 200, `bodies.length === 29`, `epochIso` parses to a valid date, every planet/moon has `orbitalAngleDeg` in `[0, 360)`.
 16. `GET /api/bodies?date=2000-01-01T12:00:00Z` → Earth's `orbitalAngleDeg` ≈ 100.380.
 17. `GET /api/bodies?date=banana` → 400.
+18. `GET /api/bodies?lang=fr` → 200; Earth's `name` = `"Terre"` (doc 09 names table) and its `info.description` differs from the English one; `orbitalAngleDeg` identical to the no-`lang` call at the same `date`. (S19)
+19. `GET /api/bodies?lang=pt` → `400 { "error": "Invalid lang" }`; `?lang=` handling combines with `?date=` (invalid date still wins its own 400). (S19)
+20. `GET /api/bodies` and `GET /api/bodies?lang=en` → byte-identical `bodies` for the same `date` (default is `en`). (S19)
+21. Data completeness (unit test on `data/localized/*`): each of fr/es/it/de covers exactly the 29 ids with non-empty `name`, `info.description`, `info.composition`, `info.funFact`; every `name` matches the doc 09 names table. (S19)
 
 ## package.json scripts (backend)
 

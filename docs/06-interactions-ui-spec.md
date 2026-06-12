@@ -1,5 +1,7 @@
 # 06 — Interactions & UI Specification
 
+> **i18n (v2, S20).** Every user-visible string quoted in this doc is the **English** version; at implementation time each one comes from its doc 09 key via `t(locale, key)` (e.g. the hint line is `t(locale, "hint")`). Exceptions that stay identical in all languages: the texture attribution, the version chip, the name `Jynfra` (doc 09 notes).
+
 ## Picking (`three/Picker.ts`)
 
 - Raycast on **`pointerup`**, and only if the pointer moved less than 5 px since `pointerdown` (so orbit-dragging never selects).
@@ -18,17 +20,16 @@ On `pointermove` (throttled to one raycast per frame max): if over a pickable bo
 
 ## Selection state machine (React, `App.tsx`)
 
-```
-        ┌──────────┐  fetch+textures OK   ┌────────────┐
-        │ loading  │ ───────────────────▶ │   system   │ ◀───────────┐
-        └──────────┘                      └────────────┘             │
-              │ fetch/textures fail            │ onBodySelected(id)  │ Escape / Back /
-              ▼                                ▼                     │ onSelectionCleared
-        ┌──────────┐  Retry button        ┌────────────┐             │
-        │  error   │ ─────▶ loading       │  focused   │ ────────────┘
-        └──────────┘                      │ (bodyId)   │ ─┐
-                                          └────────────┘  │ onBodySelected(otherId)
-                                                ▲─────────┘ (re-focus, incl. moons)
+```mermaid
+stateDiagram-v2
+    [*] --> loading
+    loading --> system: fetch + textures OK
+    loading --> error: fetch/textures fail
+    error --> loading: Retry button
+    system --> focused: onBodySelected(id)
+    focused --> system: Escape / Back / onSelectionCleared
+    focused --> focused: onBodySelected(otherId)<br/>(re-focus, incl. moons)
+    note right of focused: holds the selected bodyId
 ```
 
 - `selectedBodyId: string | null` is the single source of truth, owned by React.
@@ -37,6 +38,37 @@ On `pointermove` (throttled to one raycast per frame max): if over a pickable bo
 - Clicking the **sun** focuses it like a planet (no moons to show).
 - Focusing **Earth** additionally aims the camera at the visitor's own timezone meridian (doc 05, "Earth focus direction", S15) — the same timezone the panel shows as local time. React still just calls `focusBody("earth", layout)`; the meridian math is internal to the three layer.
 - Escape key listener: `window.addEventListener("keydown", …)` in a React effect, active only when focused.
+
+## Top navigation bar (`react/NavMenu.tsx`) — story S21
+
+A slim fixed bar along the top edge, visible in **both** view modes (system and focused), above the canvas.
+
+- **Items**: the Sun + the 8 planets, **in system order** (the API order: sun, mercury → neptune). Moons are never in the bar.
+- **Labels**: the body's localized `name` from the API (so the bar follows the app language for free).
+- **Colors**: each item's text uses its body's `color` (the same hex the InfoPanel badge uses) at full opacity when active/hovered, ~0.75 opacity otherwise.
+- **Active state**: the focused body's item is highlighted (brighter + 2 px underline in the body color). When a **moon** is focused, its **parent planet's** item is highlighted. In system view, no item is active.
+- **Click** → exactly the same path as a canvas click: `focus(bodyId)` (state machine above). Clicking the active item is a no-op (re-focus rule). Clicks during a camera transition are ignored (same rule as canvas picks).
+- **Style**: same glassy family as the card — `background: rgba(10, 14, 24, 0.6); backdrop-filter: blur(6px); border-bottom: 1px solid rgba(255,255,255,0.08);` height 44 px, items centered horizontally, 13 px uppercase labels, `z-index` above canvas (same plane as the HUD).
+- **Responsive**: single row, never wraps; on overflow (mobile portrait) the row is horizontally scrollable (`overflow-x: auto`, hidden scrollbar, edge fade). The bar must not cover the Back button: the Back button's fixed position moves down below the bar (top offset = bar height + 8 px).
+
+## URL routing — story S21
+
+The URL pathname always mirrors the focused body — all **29** bodies, moons included. **History API only** (no router dependency — CLAUDE.md rule 7); mapping is pure in `domain/routes.ts`, browser access only in `react/useRoute.ts` (doc 04).
+
+| URL | State |
+|---|---|
+| `/` | System view (no selection) |
+| `/<bodyId>` (e.g. `/earth`, `/mars`, `/sun`, `/moon`, `/titan`) | That body focused |
+| any other path (e.g. `/pluto`) | `history.replaceState` to `/`, system view |
+
+Behavior:
+
+- **Selection change → URL**: `history.pushState(null, "", path)` whenever `selectedBodyId` changes and the path differs from `location.pathname`. No push for the change applied *by* a `popstate` handler (loop guard).
+- **`popstate` → selection**: parse the path; known id → `focus(id)`, `/` or unknown → `reset()`. Browser back/forward therefore replays the focus history with the usual camera animations, no page reload.
+- **Deep link**: on boot, once the model is ready (doc 04 boot sequence), parse `location.pathname`: known id → focus it (normal 1.2 s transition from the system viewpoint), unknown non-`/` → `replaceState("/")`.
+- Back/Escape still walk moon → planet → system (state machine above); the URL follows each step (`/moon` → `/earth` → `/`).
+- The locale is **not** in the URL (doc 09 — browser language only). No query params, no hash.
+- Dev server note: Vite's default SPA fallback already serves `index.html` for `/mars` & co — no config needed.
 
 ## Layout & responsiveness
 
@@ -94,9 +126,15 @@ Number formatting helper (domain or react util): integer grouping with narrow no
 
 ## HUD (`react/Hud.tsx`)
 
-- **Back button**: visible only when focused. Fixed top-left, `← Back`, same glassy style as the card, `z-index` above canvas. Click → clear selection.
+- **Back button**: visible only when focused. Fixed top-left **below the nav bar** (top offset = bar height + 8 px, S21), `← Back`, same glassy style as the card, `z-index` above canvas. Click → clear selection.
 - **Hint line**: in system view only, fixed bottom-center, small faded text: `Click a planet to explore — drag to rotate, scroll to zoom`.
-- **Attribution footer**: fixed bottom-right, 11 px, opacity 0.45: `Textures: Solar System Scope (CC BY 4.0)` linking to `https://www.solarsystemscope.com/textures/`. Always visible (license requirement, doc 08).
+- **Footer** (S22): fixed bottom-right, 11 px, opacity 0.45, one line with `·` separators:
+
+  `v2.0 · Made by Jynfra with ❤️ · Textures: Solar System Scope (CC BY 4.0)`
+
+  - **Version chip**: `v` + major.minor of the frontend package version, injected at build time via Vite `define` (`__APP_VERSION__`, see BACKLOG S22). Never hardcode the number in a component.
+  - **Credit**: the doc 09 `madeBy` string (localized), with `{author}` = `Jynfra` rendered as a link to `https://jynfra.com` (`target="_blank" rel="noopener noreferrer"` — user-initiated navigation, not an app fetch, so CLAUDE.md rule 5 is untouched).
+  - **Attribution**: `Textures: Solar System Scope (CC BY 4.0)` linking to `https://www.solarsystemscope.com/textures/`, untranslated. Always visible (license requirement, doc 08).
 
 ## Loading & error screens
 
@@ -117,3 +155,7 @@ Number formatting helper (domain or react util): integer grouping with narrow no
 | Double-click / rapid clicks | No double-focus glitch: focusBody on an already-focused id is a no-op |
 | API returns slowly | Loading screen persists; no partial scene |
 | One texture file missing | Body falls back to flat color (doc 08); console.warn, no crash |
+| Open `/pluto` (unknown path) directly | `replaceState("/")`, system view, no error (S21) |
+| Nav-menu click during a camera transition | Ignored, same rule as canvas picks (S21) |
+| Browser back from `/moon` | Focus Earth (`/earth`), then `/` on a second back — mirrors Back/Escape (S21) |
+| Browser language `pt-BR` (unsupported) | Whole app in English; API called with `lang=en`, never a 400 (S20, doc 09) |

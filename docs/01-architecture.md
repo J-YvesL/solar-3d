@@ -103,23 +103,19 @@ export default defineConfig({
 
 ## Runtime data flow
 
-```
-┌──────────┐  1. GET /api/bodies (once, at app boot)   ┌──────────┐
-│ frontend │ ─────────────────────────────────────────▶ │ backend  │
-│          │ ◀───────────────────────────────────────── │          │
-└──────────┘  2. BodiesResponse JSON:                   └──────────┘
-              • static data (radius, color, period…)      computes
-              • orbitalAngleDeg + rotationAngleDeg        angles with
-                at epoch t0 (= server "now")              Kepler (doc 02)
-              • epochIso = t0
+```mermaid
+sequenceDiagram
+    participant F as frontend
+    participant B as backend
 
-  3. Frontend stores the response in SolarSystemModel (domain layer)
-
-  4. Every animation frame, frontend extrapolates locally:
-       Δdays           = simulatedDaysSince(t0)        // accelerated clock, doc 05
-       orbitalAngle(t) = angle0 + 360 · Δdays / orbitalPeriodDays
-       rotationAngle(t)= rot0   + 360 · (Δdays·24) / rotationPeriodHours   // signed
-     No polling. The API is called exactly once per page load.
+    F->>B: 1. GET /api/bodies (once, at app boot)
+    Note over B: computes angles with Kepler (doc 02)
+    B-->>F: 2. BodiesResponse JSON
+    Note over F: response carries:<br/>• static data (radius, color, period…)<br/>• orbitalAngleDeg + rotationAngleDeg at epoch t0 (= server "now")<br/>• epochIso = t0
+    Note over F: 3. stores the response in SolarSystemModel (domain layer)
+    loop 4. every animation frame — no polling, the API is called exactly once per page load
+        Note over F: extrapolates locally (accelerated clock, doc 05):<br/>Δdays = simulatedDaysSince(t0)<br/>orbitalAngle(t) = angle0 + 360 · Δdays / orbitalPeriodDays<br/>rotationAngle(t) = rot0 + 360 · (Δdays·24) / rotationPeriodHours (signed)
+    end
 ```
 
 Key consequence for implementers: **the backend gives a snapshot; all motion is computed client-side** in the domain layer from periods. The Kepler math lives only in the backend.

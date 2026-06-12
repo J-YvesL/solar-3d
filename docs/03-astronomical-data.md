@@ -90,6 +90,8 @@ For moons, set `axialTiltDeg = 0` and `eccentricity = 0` in the data (circular a
 
 Each body's `info` object has exactly three string fields: `description`, `composition`, `funFact`. Copy these texts verbatim.
 
+> **i18n (v2, S19).** This table is the **canonical English** content. The fr/es/it/de versions are faithful translations living only in `apps/backend/src/data/localized/<lang>.ts` — rules, localized body names and the API `?lang=` contract are in doc 09. If a text below changes, all four translations must be updated in the same commit.
+
 | id | description | composition | funFact |
 |---|---|---|---|
 | sun | The star at the center of our solar system, a near-perfect sphere of hot plasma that contains 99.86% of the system's mass. | ~73% hydrogen, ~25% helium, traces of oxygen, carbon, iron | One million Earths could fit inside the Sun. |
@@ -174,5 +176,6 @@ Split into three files in `apps/backend/src/data/` (see doc 02 for the exact Typ
 - `keplerianElements.ts` — Table 1 (planets only).
 - `bodies.ts` — Tables 2 + 3 merged: one record per body (29 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 20 moons).
 - `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 29 ids).
+- `localized/fr.ts`, `localized/es.ts`, `localized/it.ts`, `localized/de.ts` — localized `name` + `info` for all 29 ids (doc 09; names verbatim from the doc 09 table, texts translated from Table 4).
 
 A unit test must assert: 29 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).

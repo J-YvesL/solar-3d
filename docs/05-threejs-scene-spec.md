@@ -39,10 +39,16 @@ camera.position.set(0, 160, 320);   // initial system view, looking at origin
 export const EARTH_RADIUS_KM = 6371;
 export const MERCURY_SMA_AU = 0.38709927;
 
+// Per-body display-size correction (S17). The power law alone renders the Moon
+// at 0.60× Earth (real ratio 0.27) — visually too big next to Earth.
+export const DISPLAY_SIZE_FACTOR: Record<string, number> = { moon: 0.5 };
+
 // Body size: power law compresses the range, proportions stay visible.
-export function displayRadius(radiusKm: number, type: BodyType): number {
+// The factor applies to the final (clamped) result; unknown/omitted id → 1.
+export function displayRadius(radiusKm: number, type: BodyType, id?: string): number {
   if (type === "star") return 12;
-  return Math.max(2.5 * Math.pow(radiusKm / EARTH_RADIUS_KM, 0.4), 0.45);
+  const base = Math.max(2.5 * Math.pow(radiusKm / EARTH_RADIUS_KM, 0.4), 0.45);
+  return base * (id !== undefined ? (DISPLAY_SIZE_FACTOR[id] ?? 1) : 1);
 }
 
 // Planet orbit: log scale anchored on Mercury at 35 units.
@@ -60,7 +66,7 @@ export function moonOrbitDisplayRadius(parentDisplayRadius: number, index: numbe
 
 ### Expected values (assert these in `scaling.test.ts`, tolerance ±0.05)
 
-Body display radii: mercury 1.70, venus 2.45, earth 2.50, mars 1.94, **jupiter 6.52**, saturn 6.06, uranus 4.34, neptune 4.29, sun 12, moon 1.49, ganymede 1.76, titan 1.74, triton 1.35, mimas 0.62, phobos/deimos clamped to 0.45.
+Body display radii: mercury 1.70, venus 2.45, earth 2.50, mars 1.94, **jupiter 6.52**, saturn 6.06, uranus 4.34, neptune 4.29, sun 12, **moon 0.74** (= 1.49 × the 0.5 `DISPLAY_SIZE_FACTOR`, S17; without the `id` argument: 1.49), ganymede 1.76, titan 1.74, triton 1.35, mimas 0.62, phobos/deimos clamped to 0.45 (the clamp applies before the factor; no factor for them).
 
 Orbit display radii: mercury 35.0, venus 81.2, earth 105.1, mars 136.2, jupiter 226.8, saturn 271.6, uranus 323.2, neptune 356.4.
 
@@ -68,22 +74,21 @@ Moon orbits, e.g. Jupiter (parent 6.52): io 14.3, europa 21.5, ganymede 28.7, ca
 
 ## Scene graph
 
-```
-scene
-├── starfield                                  (THREE.Points)
-├── sun
-│   ├── mesh: SphereGeometry(12, 64, 64) + MeshBasicMaterial({ map: sunTexture })
-│   └── light: PointLight(0xffffff, intensity 3, distance 0, decay 0) at (0,0,0)
-├── ambient: AmbientLight(0xffffff, 0.07)
-└── per planet: planetSystem (Group)
-    ├── orbitGroup (rotation.x = incl)
-    │   ├── orbitLine                          (LineLoop, see below)
-    │   └── anchor (Object3D) — position set every frame from orbitalAngleDeg
-    │       ├── tiltGroup (rotation.z = tilt, rotation.y = pole azimuth − 180°)
-    │       │   └── bodyMesh (rotation.y = spin)   [+ ringsMesh for saturn]
-    │       └── moonsGroup (visible = false in system view)
-    │           └── per moon: same orbitGroup/orbitLine/anchor/tiltGroup/mesh pattern,
-    │                         radii from moonOrbitDisplayRadius()
+```mermaid
+flowchart TD
+    scene --> starfield["starfield — THREE.Points"]
+    scene --> sun
+    scene --> ambient["ambient: AmbientLight(0xffffff, 0.07)"]
+    scene --> ps["per planet: planetSystem (Group)"]
+    sun --> sunMesh["mesh: SphereGeometry(12, 64, 64)<br/>+ MeshBasicMaterial with sunTexture map"]
+    sun --> sunLight["light: PointLight(0xffffff, intensity 3,<br/>distance 0, decay 0) at (0,0,0)"]
+    ps --> og["orbitGroup (rotation.x = incl)"]
+    og --> ol["orbitLine — LineLoop, see below"]
+    og --> anchor["anchor (Object3D) — position set<br/>every frame from orbitalAngleDeg"]
+    anchor --> tg["tiltGroup (rotation.z = tilt,<br/>rotation.y = pole azimuth − 180°)"]
+    tg --> bm["bodyMesh (rotation.y = spin)<br/>+ ringsMesh for saturn"]
+    anchor --> mg["moonsGroup (visible = false in system view)"]
+    mg --> pm["per moon: same orbitGroup/orbitLine/anchor/<br/>tiltGroup/mesh pattern,<br/>radii from moonOrbitDisplayRadius()"]
 ```
 
 `bodyMesh.userData.bodyId = body.id` on every body mesh — the Picker (doc 06) relies on it.
@@ -130,7 +135,7 @@ export function applyEarthNightLights(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
         float cosSun = dot(normalize(vWorldNormal), uSunDirection);
-        float nightMask = 1.0 - smoothstep(-0.10, 0.10, cosSun);
+        float nightMask = 1.0 - smoothstep(0.0, 0.20, cosSun);
         totalEmissiveRadiance += texture2D(uNightMap, vMapUv).rgb * nightMask * ${NIGHT_INTENSITY};`,
       );
   };
@@ -143,7 +148,8 @@ export function applyEarthNightLights(
 }
 ```
 
-- The mask `1.0 − smoothstep(−0.10, 0.10, cosSun)` is 0 on the day side, 1 in deep night, 0.5 exactly on the terminator — a ~±6° twilight band where the lights fade in. Keep the edges in this order: GLSL `smoothstep` requires `edge0 < edge1`.
+- The mask `1.0 − smoothstep(0.0, 0.20, cosSun)` is **1 over the entire night hemisphere** (`cosSun ≤ 0`) and fades out across a ~11.5° band on the **day side**, where direct sunlight takes over. Keep the edges in this order: GLSL `smoothstep` requires `edge0 < edge1`.
+- **Why the fade sits on the day side (S18 bugfix):** the original S14 mask `1.0 − smoothstep(−0.10, 0.10, cosSun)` centered the fade *on* the terminator, so right where the Lambert term reaches zero the city lights were only at ~50 % — neither layer lit a thin band, which rendered as a dark stripe along Earth's terminator (the other planets, having no night layer, never showed it). With the lower edge at `0.0` there is no longer any point where both contributions are low. The upper edge may be tuned within `[0.15, 0.30]` if the hand-off looks abrupt; the lower edge must stay `0.0`. Current value: `0.20`.
 - `vMapUv` is the day map's UV varying; it exists because Earth's material carries the base `map`. Only call this when that map is present (it always is — the day texture is committed).
 - Reuse `tmp` — the updater runs every frame and must not allocate (same rule as the rest of the loop).
 - The night map is color data: it keeps `SRGBColorSpace` (doc 08), so `texture2D(uNightMap, …)` returns linear values, same as any sampled color map.

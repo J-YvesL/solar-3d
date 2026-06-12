@@ -12,7 +12,7 @@ pnpm dev                 # backend :3001 + frontend :5173 (proxy /api → 3001)
 pnpm test                # vitest, all packages
 pnpm lint                # eslint, all packages
 pnpm typecheck           # tsc --noEmit, all packages
-pnpm download-textures   # one-shot asset download (story S6 only)
+pnpm download-textures   # one-shot asset download
 ```
 
 ## Package map
@@ -33,22 +33,24 @@ pnpm download-textures   # one-shot asset download (story S6 only)
 | **Any number** (orbital elements, radii, periods, colors) or info text | `docs/03-astronomical-data.md` |
 | Frontend folders, layer rules, SceneManager API, React↔Three bridge | `docs/04-frontend-architecture.md` |
 | Scaling formulas, lighting, materials, rings, starfield, camera, animation | `docs/05-threejs-scene-spec.md` |
-| Clicks, focus/zoom, info panel content, CSS, responsive, edge cases | `docs/06-interactions-ui-spec.md` |
+| Clicks, focus/zoom, info panel content, nav bar, URL routing, CSS, responsive, edge cases | `docs/06-interactions-ui-spec.md` |
 | TS/ESLint/Prettier/test/git conventions, definition of done | `docs/07-coding-standards.md` |
 | Texture URLs, download script, attribution, loading | `docs/08-assets-textures.md` |
-| **What to do next** | `docs/BACKLOG.md` |
+| Locales, language detection, UI strings (5 languages), localized body names, `?lang=` | `docs/09-i18n.md` |
+
+The **active backlog** is `docs/BACKLOG.md` (v2 stories, s17 onward) — implement its stories strictly in order. The initial v1 backlog is **archived** at `docs/BACKLOG.v1.archive.md`: no longer maintained, do **not** read it by default. Consult the archive only on explicit request, or as a last resort when diagnosing a hard bug to see how a feature was originally built.
 
 ## Hard rules
 
-1. **Follow `docs/BACKLOG.md` strictly in order.** One story at a time; meet its acceptance criteria + definition of done (doc 07) before moving on. One commit per story: `feat: s<n> <summary>` — all lowercase, no dashes.
-2. **Never invent values.** Every astronomical number comes from doc 03, every formula from docs 02/05, every UI text from docs 03/06. If a value seems missing, re-read the doc; if it is genuinely missing, stop and ask — do not guess.
+1. **Never run `git commit`** — the user commits himself. When a unit of work is done (definition of done, doc 07), just provide the one-line commit message: `feat: s<n> <summary>` — all lowercase, no dashes.
+2. **Never invent values.** Every astronomical number comes from doc 03, every formula from docs 02/05, every UI text from docs 03/06/09 (translations follow the doc 09 policy). If a value seems missing, re-read the doc; if it is genuinely missing, stop and ask — do not guess.
 3. **Frontend layering is law** (doc 04): `domain/` imports neither `three` nor `react`; `three/` never imports React; only `react/` may import React. ESLint enforces it — never weaken those rules.
 4. **No Three.js object in React state/props/context, ever.** React ↔ Three communication only via the `SceneManager` public API (doc 04).
 5. **Textures**: only from the URLs in doc 08, downloaded by the script, **committed** to the repo. The running app makes zero non-localhost requests.
 6. TypeScript `strict` everywhere; no `any`, no `@ts-ignore` (doc 07).
 7. Do not add dependencies beyond those listed in docs 01/07 (express, cors, react, react-dom, three, concurrently, tsx, vitest, supertest, eslint/prettier toolchain). No state managers, no CSS frameworks, no animation libs, no test DOM libs.
-8. Do not implement non-goals (doc 00): no shadow maps, no date picker UI, no extra bodies, no i18n.
+8. Do not implement non-goals (doc 00): no shadow maps, no date picker UI, no extra bodies, no language picker UI.
 
-## Definition of done (every story)
+## Definition of done
 
-`pnpm lint` + `pnpm typecheck` + `pnpm test` all green, story's acceptance checklist verified (manual checks in a real browser), no leftover TODOs or `console.log`.
+`pnpm lint` + `pnpm typecheck` + `pnpm test` all green, behavior verified (manual checks in a real browser), no leftover TODOs or `console.log`.

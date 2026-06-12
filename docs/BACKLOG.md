@@ -1,334 +1,133 @@
-# BACKLOG — Ordered Implementation Stories
+# BACKLOG v2 — Ordered Implementation Stories
+
+The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
 Rules of engagement:
 
 - Implement stories **strictly in order**. Do not start a story before the previous one meets its acceptance criteria **and** the definition of done (doc 07).
-- One git commit per story: `S<n>: <summary>`.
+- One git commit per story: `feat: s<n> <summary>` (all lowercase, no dashes — CLAUDE.md).
 - Each story lists the docs to (re)read first. When a detail is missing, the answer is in a doc — search the docs before improvising.
 - Every story leaves the repo in a runnable state (`pnpm dev` works).
 
 ---
 
-## S1 — Monorepo scaffolding
+## S17 — Moon display size halved
 
-**Read first:** doc 01, doc 07.
+**Read first:** doc 05 (scaling formulas + expected values), doc 04 (api mapper).
 
-**Goal:** Empty but wired workspace: three packages, shared tooling, both dev servers start.
+**Goal:** The Moon renders at **half** its previous size: the generic power-law made it visually too big next to Earth (display ratio 0.60 vs real 0.27). A per-body display-size factor fixes it without touching any other body.
 
 **Tasks**
-1. Root: `package.json` (scripts from doc 01), `pnpm-workspace.yaml`, `tsconfig.base.json` (doc 07), `.prettierrc`, `.gitignore` (node_modules, dist; NOT public/textures), `git init` + initial commit setup.
-2. `packages/shared`: package.json (`@solar/shared`, `"main": "src/index.ts"`), tsconfig, empty `src/index.ts`.
-3. `apps/backend`: Express app skeleton with `app.ts`/`server.ts` split (doc 02), only `GET /api/health` → `{ status: "ok" }`, scripts from doc 02, `cors()` enabled.
-4. `apps/frontend`: Vite + React + TS app (manual setup, not create-vite leftovers), black page rendering `<App />` with text "solar-3d", proxy config from doc 01, scripts from doc 04. Add `public/textures/.gitkeep`.
-5. ESLint flat config per app + root prettier; wire `lint`/`typecheck`/`test` scripts everywhere (empty test suites pass with `--passWithNoTests` or one placeholder test).
+1. `domain/scaling.ts`: add `DISPLAY_SIZE_FACTOR: Record<string, number> = { moon: 0.5 }` and an optional `id` parameter — `displayRadius(radiusKm, type, id?)` multiplies the existing result (clamp included) by `DISPLAY_SIZE_FACTOR[id] ?? 1` (doc 05).
+2. `api/client.ts`: pass `dto.id` to `displayRadius` in the mapper.
+3. `domain/scaling.test.ts`: moon → **0.74 ± 0.05**; all other expected values of doc 05 unchanged (earth 2.50, phobos/deimos still clamped at 0.45); without `id`, the factor does not apply.
 
 **Acceptance**
-- [x] `pnpm install` then `pnpm dev` starts backend (3001) and frontend (5173) concurrently.
-- [x] `curl http://localhost:3001/api/health` → `{"status":"ok"}`.
-- [x] `curl http://localhost:5173/api/health` → same (proxy works).
-- [x] Browser at 5173 shows a black page with "solar-3d".
-- [x] `pnpm lint && pnpm typecheck && pnpm test` all pass.
+- [ ] Scaling tests green, moon ≈ 0.74 (= 1.49 × 0.5).
+- [ ] Focused Earth view: the Moon's diameter is visually ~half of before, clearly smaller than Earth (~0.30 of Earth's display radius).
+- [ ] Moon orbit radius unchanged (`moonOrbitDisplayRadius` untouched — ~5.5 units); other moons (Io, Titan…) unchanged.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 
-## S2 — Shared DTO types
+## S18 — Earth terminator dark-band bugfix
 
-**Read first:** doc 02 (DTO section).
+**Read first:** doc 05 ("Earth night lights"), doc 02 (step D + test 11b — the terminator anchoring must not move).
 
-**Goal:** `packages/shared/src/bodies.ts` with `BodyType`, `BodyInfo`, `BodyDto`, `BodiesResponse` exactly as specified; re-exported from `index.ts`.
+**Goal:** Remove the dark band along Earth's day/night terminator. Other planets are unaffected (they have no night-side emissive layer).
 
-**Tasks:** Write the types verbatim from doc 02. Import `BodyDto` in a backend file and a frontend file (a typed placeholder) to prove resolution works in both directions.
+**Context:** The S14 mask `1.0 − smoothstep(−0.10, 0.10, cosSun)` centers the twilight fade **on** the terminator: right where the Lambert sunlight term reaches zero, the city lights are still at ~50 % — a band where *neither* the day lighting *nor* the night emissive contributes, visible as a darker stripe. The fix moves the entire fade onto the **day side**: the night layer is at 100 % everywhere the sun does not light, and fades out only where sunlight takes over.
+
+**Tasks**
+1. `three/earthNightLights.ts`: replace the mask with `float nightMask = 1.0 - smoothstep(0.0, 0.20, cosSun);` (doc 05). Nothing else changes — same uniforms, same `totalEmissiveRadiance` composition, same per-frame updater.
+2. Visual tuning allowed on the upper edge only, within `[0.15, 0.30]` (lower edge stays `0.0` — that is the fix). If the final value differs from `0.20`, update doc 05 in the same commit.
 
 **Acceptance**
-- [x] `pnpm typecheck` passes with `@solar/shared` imported by both apps.
-- [x] No runtime code in the shared package (types/interfaces only).
+- [ ] Focused Earth: no darker stripe along the terminator — brightness transitions monotonically from lit day to city-lit night (verify visually + headless chromium screenshot).
+- [ ] City lights at full intensity over the entire night hemisphere; they fade out across the day-side twilight, no hard cut.
+- [ ] Day side unchanged; other planets' terminators unchanged; no shader compile warnings.
+- [ ] No backend change: test 11b untouched and green (the mask is display-only).
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 
-## S3 — Backend data layer
+## S19 — Backend i18n: `GET /api/bodies?lang=`
 
-**Read first:** doc 03 (all tables), doc 02 (file layout, tests 12–14).
+**Read first:** doc 09 (entire), doc 02 (API contract + tests 18–21), doc 03 (Table 4 — canonical English texts).
 
-**Goal:** All 29 bodies' static data in `apps/backend/src/data/`, fully tested.
+**Goal:** The API serves body `name` and `info` (description, composition, funFact) in en/fr/es/it/de. DTO shape unchanged.
 
 **Tasks**
-1. `data/keplerianElements.ts`: Table 1 → `Record<PlanetId, { a0; aDot; e0; eDot; i0; iDot; L0; LDot; w0; wDot; o0; oDot }>` (au / degrees, per-century rates).
-2. `data/bodies.ts`: Tables 2 + 3 → one array of 29 static records (id, name, type, parentId, radiusKm, rotationPeriodHours, axialTiltDeg, color, semiMajorAxisKm, eccentricity, inclinationDeg, orbitalPeriodDays, meanLongitudeAtJ2000Deg for moons). Copy values **verbatim** from doc 03; planets' eccentricity/inclinationDeg come from Table 1 J2000 values (see Table 2 notes).
-3. `data/bodyInfo.ts`: Table 4 → `Record<string, BodyInfo>`.
-4. `data/bodies.test.ts`: tests 12–14 from doc 02.
+1. `apps/backend/src/data/localized/fr.ts`, `es.ts`, `it.ts`, `de.ts`: each exports `localizedBodies: Record<string, { name: string; info: BodyInfo }>` for all 29 ids — names **verbatim from the doc 09 table**, info texts translated from doc 03 Table 4 following the doc 09 translation policy.
+2. `routes/bodies.ts`: parse `lang` — omitted → `en`; `en|fr|es|it|de` accepted; anything else → `400 { "error": "Invalid lang" }` (doc 02).
+3. `ephemeris/state.ts` (or a small merge step in the route): for `lang ≠ en`, override each DTO's `name` and `info` from `localizedBodies`; `en` keeps the canonical data files.
+4. Tests 18–21 of doc 02 (supertest + data completeness).
 
 **Acceptance**
-- [x] Tests 12–14 pass (29 bodies, unique ids, parent links, moon counts per planet, info for all, color format).
-- [x] Spot-check vs doc 03: Earth radius 6371, Triton inclination 157.0, Venus tilt 177.36.
+- [ ] `curl "localhost:3001/api/bodies?lang=fr" | jq '.bodies[] | select(.id=="earth") | .name'` → `"Terre"`, and its `info.description` is French.
+- [ ] `curl "localhost:3001/api/bodies"` → English (default); `?lang=pt` → 400.
+- [ ] Tests 18–21 green: fr content, invalid lang 400, default en, all 4 languages cover 29 ids with non-empty fields.
+- [ ] `?date=` and `?lang=` combine; angular state identical across languages.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 
-## S4 — Kepler ephemeris + `/api/bodies`
+## S20 — Frontend i18n: localized UI
 
-**Read first:** doc 02 (entire), doc 03 conventions.
+**Read first:** doc 09 (entire), doc 04 (layering + new modules), doc 06 (which labels exist).
 
-**Goal:** The complete API: angular state computed for any date.
+**Goal:** Every visible string follows the browser language; unsupported languages fall back to English. With S19, the whole app — chrome and content — is localized.
 
 **Tasks**
-1. `ephemeris/julian.ts` (JD, T, ΔdaysJ2000) + tests 1–2.
-2. `ephemeris/kepler.ts` (steps B exactly: propagate, mean anomaly, Newton–Raphson ×5, true anomaly, normalize) + tests 3–8.
-3. `ephemeris/state.ts`: assemble 29 `BodyDto`s for a date (planets via Kepler, moons via circular formula C, rotations via D, info merged) + tests 9–11.
-4. `routes/bodies.ts`: `GET /api/bodies?date=` with default-now and 400-on-invalid + supertest tests 15–17.
+1. `domain/i18n/locale.ts`: `Locale`, `SUPPORTED_LOCALES`, `resolveLocale()` per doc 09 + unit tests (`"fr-FR"` → `fr`, `"es-419"` → `es`, `"pt-BR"` → `en`, `undefined` → `en`).
+2. `domain/i18n/strings.ts`: the doc 09 UI-string dictionaries **verbatim** + `t(locale, key, params?)` with `{placeholder}` interpolation + tests (interpolation, every locale × every key non-empty).
+3. `api/client.ts`: `fetchBodies(lang: Locale)` appends `?lang=`.
+4. React layer: resolve the locale once at boot; replace every hardcoded string in `App.tsx`, `Hud.tsx`, `InfoPanel.tsx` with `t()` — loading/error/retry, back, hint, panel labels, humanized units (hours/days/years), type badges (star/planet/moon), "Your local time", "Distance from …" (sun vs parent interpolation per doc 09).
+5. Texture attribution stays untranslated (license line, docs 08/09).
 
 **Acceptance**
-- [x] All 17 backend tests green.
-- [x] `curl "http://localhost:3001/api/bodies?date=2000-01-01T12:00:00Z"` → Earth `orbitalAngleDeg` ≈ 100.38.
-- [x] `curl http://localhost:3001/api/bodies | jq '.bodies | length'` → 29.
+- [ ] Browser in French (devtools language override or `LANGUAGE=fr chromium`): all UI labels **and** all panel content in French; badge shows `planète`.
+- [ ] Browser in an unsupported language (e.g. `pt`): everything in English, no 400 from the API.
+- [ ] `domain/i18n` tests green; no hardcoded user-visible string left in `react/` (grep).
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green (i18n stays pure — no `navigator` access in `domain/`).
 
 ---
 
-## S5 — Frontend domain layer + API client + boot states
+## S21 — Top navigation bar + per-body URLs
 
-**Read first:** doc 04 (entire), doc 05 (scaling formulas), doc 06 (loading/error screens).
+**Read first:** doc 06 ("Top navigation bar" + "URL routing"), doc 04 (new modules + layering), doc 00 (F17).
 
-**Goal:** Frontend fetches and models the system; no 3D yet.
+**Goal:** A top bar navigates straight to the Sun or any planet; the URL always mirrors the focused body (`/earth`, `/mars`, `/sun`, … — all 29 bodies, moons included), with working deep links and browser back/forward. No routing library (deps are frozen — CLAUDE.md rule 7): History API only.
 
 **Tasks**
-1. `domain/types.ts`, `domain/scaling.ts` (formulas from doc 05) + `scaling.test.ts` asserting the expected-values table (doc 05).
-2. `domain/solarSystemModel.ts` (+ tests: `childrenOf` ordering, `stateAt` extrapolation incl. mod-360 wrap).
-3. `domain/simulationClock.ts` (+ test: tick accumulation, rate change keeps continuity).
-4. `api/client.ts`: `fetchBodies()` + mapper DTO → `Body` (adds displayRadius / orbitDisplayRadius).
-5. `react/App.tsx`: loading → ready/error state machine (doc 06 screens); on ready, render a plain `<ul>` of the 29 body names (temporary, replaced in S7).
+1. `domain/routes.ts` (pure) + tests: `pathForBody(id: string | null): string` (`null` → `/`), `bodyIdFromPath(path: string, validIds: ReadonlySet<string>): string | null` (unknown/`/` → `null`).
+2. `react/useRoute.ts`: after the model is ready, read the initial path — known id → focus it (deep link), unknown non-`/` path → `history.replaceState` to `/`; on each selection change, `history.pushState` (skip redundant pushes, and don't push for changes caused by `popstate`); on `popstate`, focus the body from the path or reset to system view. Wire into `useSolarSystemScene`/`App` — `SceneManager` API unchanged.
+3. `react/NavMenu.tsx` + CSS per doc 06: fixed top bar, items **Sun + the 8 planets in system order** (API order), labels = localized `name` from the API, each item colored with its body's `color` (same as the InfoPanel badge), active item highlighted, click → same `focus(bodyId)` path as a canvas click; mobile: horizontally scrollable row.
+4. Edge cases per doc 06: focusing a moon updates the URL (`/moon`, `/titan`) and highlights no menu item (or its parent planet — see doc 06); Back/Escape still walks moon → planet → system with the URL following.
 
 **Acceptance**
-- [x] Domain tests green (incl. scaling table: jupiter displayRadius ≈ 6.52, neptune orbit ≈ 356.4).
-- [x] Browser shows loading screen, then the 29 names; with backend stopped, shows error screen and Retry works.
+- [ ] Clicking "Mars" in the bar focuses Mars (camera flight + panel) and the URL becomes `/mars`; menu colors match the panel badge colors; order: Sun, Mercury → Neptune.
+- [ ] Opening `http://localhost:5173/saturn` directly deep-links into Saturn focused view after load; `/pluto` lands on `/` (system view).
+- [ ] Browser back/forward replays the focus history (system ↔ planet ↔ moon), no page reload.
+- [ ] Clicking the Moon in the scene → URL `/moon`; Back → `/earth`; second Back → `/`.
+- [ ] Bar usable on mobile (scrollable, doesn't cover the back button or panel) in both orientations.
+- [ ] `domain/routes` tests green; `pnpm lint && pnpm typecheck && pnpm test` green.
 
 ---
 
-## S6 — Texture assets (one-shot)
+## S22 — v2.0: version in the footer + credit
 
-**Read first:** doc 08 (entire).
+**Read first:** doc 06 (HUD/footer), doc 09 (`madeBy` string), doc 08 (attribution requirement).
 
-**Goal:** All 11 texture files committed; app standalone.
+**Goal:** The project is stamped **v2.0**; the footer shows the version and the credit `Made by Jynfra with ❤️` (localized), Jynfra linking to `https://jynfra.com`. The texture attribution stays (license requirement).
 
-**Tasks:** Write `scripts/download-textures.mjs` per doc 08; run `pnpm download-textures`; verify files; write `three/textures.ts` (`preloadTextures()`); wire texture preload into the boot sequence in parallel with the fetch; add the attribution line to the README.
+**Tasks**
+1. Set `"version": "2.0.0"` in all four `package.json` files (root, `packages/shared`, `apps/backend`, `apps/frontend`).
+2. `apps/frontend/vite.config.ts`: `define: { __APP_VERSION__: JSON.stringify(pkg.version) }` reading the frontend package.json; declare `declare const __APP_VERSION__: string;` in `src/vite-env.d.ts`. Display string = `v` + major.minor (`"2.0.0"` → `v2.0`).
+3. `react/Hud.tsx` footer (doc 06): `v2.0 · Made by Jynfra with ❤️ · Textures: Solar System Scope (CC BY 4.0)` — `madeBy` via `t()` with `{author}` = the `Jynfra` link (`https://jynfra.com`, `target="_blank" rel="noopener noreferrer"`), attribution link unchanged.
 
 **Acceptance**
-- [x] `ls apps/frontend/public/textures` → exactly the 11 files of doc 08, each > 10 kB.
-- [x] Script is idempotent (second run: all "skip").
-- [x] Files are committed to git.
-- [x] DevTools Network tab: zero requests to non-localhost hosts at runtime.
-
----
-
-## S7 — Static scene: starfield + sun
-
-**Read first:** doc 05 (renderer, scene graph, starfield, bloom), doc 04 (CanvasHost/SceneManager lifecycle).
-
-**Goal:** First 3D pixels: full-window canvas, stars, glowing textured sun.
-
-**Tasks**
-1. `three/SceneManager.ts` skeleton: constructor builds renderer/camera/controls per doc 05, `resize()`, `dispose()`, `setAnimationLoop` rendering via composer.
-2. `three/buildScene.ts`: `createStarfield()`, `createSun()` (mesh + PointLight + ambient).
-3. `three/postprocessing.ts`: composer + UnrealBloomPass (doc 05 values).
-4. `react/CanvasHost.tsx` mounting/disposing the SceneManager (doc 04 snippet); replace the S5 `<ul>` with the canvas.
-
-**Manual acceptance**
-- [x] Full-window black canvas; ~subtle stars; textured sun glowing at center.
-- [x] OrbitControls: drag rotates, wheel zooms (15–900 limits).
-- [x] Window resize keeps aspect correct.
-- [x] No WebGL errors/warnings in console; React StrictMode double-mount does not leak (dispose works, only one canvas).
-
-
----
-
-## S8 — Planets & orbits
-
-**Read first:** doc 05 (coordinates, scene graph, materials, orbit lines, Saturn rings).
-
-**Goal:** The 8 textured planets, positioned by real API angles, on visible orbit circles.
-
-**Tasks**
-1. `createBodyMesh()` (texture or flat-color material, userData.bodyId), `createOrbitLine()`, `createSaturnRings()` (UV remap snippet from doc 05).
-2. Build the per-planet group hierarchy (orbitGroup → anchor → tiltGroup → mesh) with inclination and axial tilt.
-3. Position each planet once from its API `orbitalAngleDeg` (no animation yet). Moons: build the groups too but `moonsGroup.visible = false`.
-
-**Manual acceptance**
-- [x] 8 planets visible on 8 orbit circles; spacing matches doc 05 table (mercury ~35 → neptune ~356).
-- [x] Jupiter visibly ~2.6× Earth's diameter; Saturn has tilted rings with transparency.
-- [x] Earth shows recognizable continents; Jupiter shows bands/red spot.
-- [x] Day/night: each planet lit on the sun side, dark opposite.
-- [x] Compare on-screen positions with an online "solar system now" map (e.g. theskylive.com/planetarium): angular layout of planets matches reality for today's date (rough check, ±10°).
-
-
----
-
-## S9 — Animation (orbits + spin)
-
-**Read first:** doc 05 (time & animation loop), doc 04 (`SolarSystemModel.stateAt`, `SimulationClock`).
-
-**Goal:** Everything moves.
-
-**Tasks:** Wire the frame loop: tick the clock (rate `SIM_DAYS_PER_REAL_SECOND_SYSTEM = 2`), recompute every visible body's anchor position and `rotation.y` from `model.stateAt(...)`, spin the sun too.
-
-**Manual acceptance**
-- [x] Simulation runs at real-time speed (1 real second = 1 simulated second). Verify by checking Earth's orbital angular velocity ≈ 360°/365.256 days ≈ 0.986°/day ≈ 0.0114°/s; easily confirmed by watching a planet move slowly across its orbit.
-- [x] Planets spin on their axes; Uranus's spin axis is visibly sideways.
-- [x] Motion is smooth (~60 fps, no per-frame allocations in the loop — reuse Vector3s).
-
-
----
-
-## S10 — Picking + camera focus
-
-**Read first:** doc 06 (picking, state machine), doc 05 (CameraDirector).
-
-**Goal:** Click a planet → smooth zoom; Escape/empty-click → back.
-
-**Tasks**
-1. `three/Picker.ts` (pointerup + 5 px threshold, pickables list, hover cursor/highlight).
-2. `three/CameraDirector.ts`: `focusBody` transition (1.2 s ease-in-out-cubic, moving-target tracking, view offset per layout), `trackFocusedBody`, `resetView`, `setFocusLayout`.
-3. SceneManager API: `onBodySelected`, `onSelectionCleared`, `focusBody`, `resetView`, `setFocusLayout` (doc 04 signatures).
-4. `react/useSolarSystemScene.ts` + App wiring: `selectedBodyId` state, Escape listener, clicks ignored during transition.
-
-**Manual acceptance**
-- [x] Click Earth: camera flies to it in ~1.2 s and keeps following it on its orbit; clock slows to focused rate.
-- [x] Earth sits in the **left half** of the screen (view offset), not center.
-- [x] Escape or clicking empty space animates back to the system view; clock rate restored.
-- [x] Dragging the view then releasing over a planet does NOT select it.
-- [x] Hover over a planet shows pointer cursor + slight highlight (desktop).
-
-
----
-
-## S11 — Focused view: moons + InfoPanel + responsive
-
-**Read first:** doc 06 (entire), doc 04 (childrenOf), doc 05 (moon orbits).
-
-**Goal:** The full focused experience on desktop and mobile.
-
-**Tasks**
-1. Show/hide `moonsGroup` + moon orbit lines on focus/reset; moons animated like planets (already built in S8/S9); moons pickable when visible.
-2. `react/InfoPanel.tsx` with the exact content/order/formatting of doc 06; `react/Hud.tsx` (Back button, hint line, attribution footer).
-3. `react/useLayout.ts` (`(max-width: 768px), (orientation: portrait)`); pass layout to `focusBody`/`setFocusLayout`; panel CSS for both layouts (doc 06).
-4. Edge cases table of doc 06: moon click, sun click, re-focus, resize/orientation while focused.
-
-**Manual acceptance**
-- [x] Desktop: Jupiter focused → Jupiter + 4 animated moons on the left, info card on the right (name, badge, description, composition, radius, periods humanized, distance, moon list, fun fact).
-- [x] Mobile (devtools, 390×844): planet in top half, scrollable card in bottom half; rotating the viewport flips the layout live.
-- [x] Clicking Io focuses it (panel updates); Back returns to Jupiter, a second Back to the system view.
-- [x] Clicking the sun: panel only, no moons.
-- [x] Attribution footer always visible.
-
----
-
-## S12 — Polish & final QA
-
-**Read first:** doc 06 (edge cases), doc 07 (definition of done), doc 00 (feature list).
-
-**Tasks**
-1. Sweep the doc 06 edge-case table once more; fix anything broken.
-2. Performance pass: no allocations in the frame loop, pixelRatio cap, geometry segment counts per doc 05; verify ~60 fps in system view on a mid-range laptop.
-3. README.md at repo root: what it is, screenshot placeholder, `pnpm install && pnpm download-textures && pnpm dev`, texture attribution.
-4. Optional (only if everything above is done): CSS2D name labels on hover.
-
-**Final acceptance — full feature checklist**
-- [x] Every feature F1–F12 of doc 00 demonstrably works.
-- [x] `pnpm lint && pnpm typecheck && pnpm test` green from a clean clone.
-- [x] Fresh-clone test: `pnpm install && pnpm dev` works offline except localhost (textures committed).
-
----
-
-## S13 — Real rotation phase (correct day/night terminator)
-
-**Read first:** doc 03 (Table 5 + the `rotationPeriodHours` note under Table 2), doc 02 (step D + tests 11/11b).
-
-**Goal:** Anchor each body's rotation to its real J2000 orientation so the lit/dark hemispheres and the texture longitude facing the Sun are correct at the real current time — e.g. when it is noon UTC, Europe/Africa face the Sun on the 3D Earth.
-
-**Context:** Until now `rotationAngleDeg` had phase 0 at J2000 (arbitrary): rotation *speed* was right, absolute orientation meant nothing. Doc 03 now provides Table 5 (`rotationAtJ2000Deg`, one anchor per body: GMST for Earth, IAU/Horizons-derived for the others) and higher-precision `rotationPeriodHours` in Table 2 (6 decimals — mandatory, otherwise the anchor drifts by tens of degrees per decade).
-
-**Tasks**
-1. `apps/backend/src/data/bodies.ts`: add `rotationAtJ2000Deg` to every record — Table 5 values for sun, the 8 planets and the Moon; `0` for the 19 other moons. Update `rotationPeriodHours` to the new 6-decimal Table 2 values (mercury, venus, earth, mars, jupiter, saturn, uranus, neptune — copy verbatim).
-2. `apps/backend/src/ephemeris/state.ts`: update step D to `rotationAngleDeg = (rotationAtJ2000Deg + 360 · (ΔdaysJ2000 · 24) / rotationPeriodHours) mod 360` (doc 02). Remove the "phase 0 is arbitrary" code comment; reference doc 03 Table 5 instead.
-3. `apps/backend/src/ephemeris/state.test.ts`: update test 11 (Earth @ J2000 → 280.461 ± 0.01; @ J2000 + 48 h → 282.432 ± 0.01) and add test 11b (Earth sub-solar longitude `(orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` → 0.74 ± 0.5 @ `2026-06-11T12:00:00Z`, 180.75 ± 0.5 @ `2026-06-11T00:00:00Z`).
-4. Check `data/bodies.test.ts` still passes (it should — no schema change beyond the added field); extend test 12–14 set with: every body has `rotationAtJ2000Deg` in `[0, 360)`.
-
-No frontend change: the frontend already extrapolates from the API's `rotationAngleDeg` snapshot.
-
-**Acceptance**
-- [x] All backend tests green, including updated 11 and new 11b.
-- [x] At load time, Earth's sub-solar longitude matches the current UTC time within **±15°** (= ±1 h): compute expected `(180 − 15 × UTC decimal hours) mod 360`, compare with `(orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` from `curl http://localhost:3001/api/bodies` for Earth.
-- [x] Visual check in the browser: at the current real time, the hemisphere of Earth facing the Sun is the one where it is daytime right now (e.g. at 12:00 UTC, Europe/Africa lit; at 00:00 UTC, the Pacific lit).
-- [x] Moon terminator roughly matches the current real moon phase as seen in the focused Earth view.
-- [x] Known limitation verified as documented (doc 03 Table 5 notes): Venus/Uranus anchors are indicative only — no acceptance check for them.
-
----
-
-## S14 — Earth city lights on the night side
-
-**Read first:** doc 00 (F13), doc 08 (manifest, `earth-night.jpg`, loading), doc 05 ("Earth night lights" section + animation loop).
-
-**Goal:** The dark half of the 3D Earth shows the real lights of major cities (emissive night map), fading out across the day/night terminator; the day side is untouched.
-
-**Context:** S13 anchored Earth's rotation to its real orientation, so the hemisphere in the dark is the one where it is actually night right now. Lighting up the cities makes that immediately readable: the night map (NASA-derived, Solar System Scope) is applied as an emissive layer masked to the night side in the shader. Frontend-only story — no backend, API or data change.
-
-**Tasks**
-1. `scripts/download-textures.mjs`: add the `earth-night.jpg` entry from the doc 08 manifest; run `pnpm download-textures` (the 11 existing files are skipped); commit the new file — 12 files total.
-2. `three/textures.ts`: load `NIGHT_TEXTURE = "earth-night"` in `preloadTextures()` (updated doc 08 snippet); missing file stays non-fatal.
-3. `three/earthNightLights.ts`: implement `applyEarthNightLights()` exactly per doc 05 — the night map is its **own** `uNightMap` sampler **added** to `totalEmissiveRadiance` (masked by sun direction), and it must **not** touch `material.emissive`/`emissiveMap`. Apply it to Earth's material only, in scene building, and only when both the `"earth-night"` texture and Earth's day `map` are present.
-4. Frame loop (`SceneManager`): call the returned sun-direction updater once per frame, after the anchor positions are set (doc 05 loop pseudo-code; no per-frame allocations).
-5. **Picker coexistence (regression):** the Picker (S10) writes `material.emissive` for hover/focus highlight (`0x222222`/`0x000000`). The night lights are decoupled from `emissive` (task 3) precisely so focusing Earth — which sets `emissive` to black — does not extinguish them. Do not revert to driving the lights through `material.emissive`.
-
-**Manual acceptance**
-- [x] Focused Earth view: the night hemisphere shows city lights — bright clusters recognizable (verified East Asia / SE Asia / Australia, whichever hemisphere is in night at the time); the sunlit hemisphere shows none.
-- [x] The lights fade in gradually across the terminator (twilight band), no hard cut.
-- [x] Consistency with S13: the lit cities are those where it is night in reality right now (verified ≈13:30 UTC → Asia-Pacific in darkness, Europe/Africa sunlit and unlit).
-- [x] Focusing Earth keeps the lights (regression from the Picker emissive highlight): verified with `material.emissive` forced to black, lights still render.
-- [x] Delete `apps/frontend/public/textures/earth-night.jpg` locally: the app still boots, Earth renders as before S14 (console warning only) — observed when the file was absent before download. Restore the file afterwards.
-- [x] No shader compile errors/warnings in the console (verified via headless render).
-- [x] `pnpm download-textures` is idempotent again (12 × "skip"); textures committed, so zero non-localhost requests at runtime.
-
----
-
-## S15 — Focus Earth on the visitor's timezone
-
-**Read first:** doc 00 (F14), doc 05 ("Earth focus direction" + Focus transition), doc 06 (selection state machine + the "Your local time" panel row), doc 02 (step D / test 11b for the sub-solar longitude relation).
-
-**Goal:** Clicking Earth ends the focus transition with the camera in front of the visitor's own timezone meridian — their region faces them. At the current real time this naturally frames their part of the globe, lit by day or (with S14) sparkling with city lights by night.
-
-**Context:** We already surface the visitor's timezone as the live local-time row in the InfoPanel (doc 06), so the longitude is free: `Lv = −getTimezoneOffset()/60 × 15`. Only the focus *direction* changes, and only for Earth — `dist`, the 1.2 s ease, the half-screen view offset and the moving-target tracking are exactly as today (doc 05). Frontend-only story — no backend, API or data change.
-
-**Tasks**
-1. `domain/visitorLongitude.ts`: `visitorLongitudeDeg()` (pure, `Date`-based, degrees east) + unit test (mock `getTimezoneOffset`: −120 → +30, +300 → −75, 0 → 0).
-2. `three/CameraDirector.ts`: `focusBody` accepts optional `focusDirection?: THREE.Vector3 | null`; when present, replaces `normalize(currentCamPos − targetPos)`. The `y ≥ 0.25·dist` clamp is **skipped** for explicit directions (applying it pushes the camera toward the pole when the direction is near-horizontal — see doc 05).
-3. `three/SceneManager.ts`: in `focusBody`, when `bodyId === "earth"`, compute the visitor-meridian direction (`Lss` from `model.stateAt`, `dSun = normalize(−P)`, `dV = rotateY(Lv − Lss)·dSun`) and pass it to `CameraDirector.focusBody`. Pre-allocated class vectors; public `focusBody(bodyId, layout)` signature unchanged.
-4. Sign of `Δ` verified correct (Europe/Paris UTC+2 → Atlantic/Europe/Africa facing camera).
-
-**Manual acceptance**
-- [x] Click Earth: camera settles with the visitor's own region facing it (UTC+2 → Europe–Africa front-and-centre), not a random hemisphere — verified visually.
-- [x] Equatorial framing: camera faces the equator, not the north pole (y-clamp removed for explicit directions).
-- [x] Time-correct: if it is night for the visitor, their region arrives dark with S14 city lights; if day, sunlit.
-- [x] Focus mechanics unchanged: ~1.2 s ease, Earth in the left (desktop) half, smooth orbit tracking, Back/Escape reset.
-- [x] `visitorLongitudeDeg()` unit test green (3 cases, 40 frontend tests total).
-- [x] No regression for other bodies — focusing the Sun, a planet or a moon still flies in from the current camera direction.
-
----
-
-## S16 — Real axial-tilt direction (correct seasons & solstices)
-
-**Read first:** doc 03 (Table 6 + accuracy notes), doc 05 (coordinate conventions — the new tilt/spin formulas — + scene graph + animation loop), doc 02 (DTO field, step D invariant, test 14c), doc 00 (F15).
-
-**Goal:** Each planet's spin axis leans toward its real ecliptic azimuth, so the seasons happen at the right dates: near the June solstice, Earth's north pole leans toward the Sun, the arctic is in permanent daylight, and Western Europe stays lit until late evening UTC — instead of the equinox-like terminator the old fixed tilt produced.
-
-**Context:** Until S15 the tilt was applied as `tiltGroup.rotation.z` only — correct magnitude, but the pole always leaned toward scene azimuth 180° ("real pole azimuth ignored" — that doc 05 simplification is now lifted). The seasonal phase was wrong by ~90° for Earth: on 2026-06-11 (Earth at heliocentric longitude ≈ 260°), the scene rendered a near-March-equinox geometry, putting Europe in darkness ~2 h early. Doc 03 now provides Table 6 (`poleEclipticLonDeg`) and doc 05 specifies the Y-yaw + spin compensation that keeps the sub-solar-longitude invariant (doc 02 step D, test 11b) intact. Pure data passthrough on the backend — no algorithm change.
-
-**Tasks**
-1. `packages/shared/src/bodies.ts`: add `poleEclipticLonDeg: number` to `BodyDto` (doc 02 DTO comment included).
-2. `apps/backend/src/data/bodies.ts`: add `poleEclipticLonDeg` to every record — Table 6 values for the sun + 8 planets, `0` for all 20 moons. `apps/backend/src/ephemeris/state.ts`: pass the field through like `axialTiltDeg`.
-3. `apps/backend/src/data/bodies.test.ts`: test 14c (doc 02) — `[0, 360)` for all, earth exactly 90, venus 210.19, uranus 77.65, every moon 0.
-4. Frontend: add the field to `domain/types.ts` (`Body`) and the `api/client.ts` DTO→Body mapper.
-5. `three/SceneManager.ts` — `buildSolarSystem` **and** `animateBodies`: apply the doc 05 formulas — `tiltGroup.rotation.y = degToRad(poleEclipticLonDeg − 180)` (the `rotation.z` tilt is unchanged) and spin `mesh.rotation.y = degToRad(rotationAngleDeg + 180 − poleEclipticLonDeg)` for planets and moons; the sun (no tilt group) keeps plain `rotationAngleDeg`. No per-frame allocations.
-6. Run the whole backend + frontend test suites: test 11b must stay green untouched (the spin compensation must not move the terminator).
-
-**Manual acceptance**
-- [x] All tests green, including new test 14c and unmodified test 11b.
-- [x] System view at the current real date (June 2026, near solstice): from a side view, Earth's north pole visibly leans toward the Sun; Uranus still spins visibly sideways; Saturn's rings still tilted. (Verified 2026-06-11 ~20:30 UTC, headless render + scene-graph cross-check: pole tilt 23.44°, pole azimuth 9.4° from the Sun direction — the 10 days left to the solstice; was ~170° before the fix.)
-- [x] Focused Earth in the evening: arctic cap entirely in daylight on the lit face, sub-solar point in the northern hemisphere (sub-solar latitude +23.1° measured; was ~0° before the fix); night side over Europe/Africa shows S14 city lights.
-- [x] Sub-solar longitude unchanged (regression vs S13): measured 232.59°E vs 232.70°E expected at 20:29 UTC — within 0.11°.
-- [x] Moon terminator still matches the real moon phase (regression: for tilt-0 moons the −180° yaw and +180° spin compensation cancel exactly).
+- [ ] Footer shows `v2.0` and the localized credit; clicking `Jynfra` opens https://jynfra.com in a new tab; attribution link still present and working.
+- [ ] Version is single-sourced: bumping the frontend package.json changes the footer with no other edit.
+- [ ] Still zero non-localhost requests at runtime (the link is user-initiated navigation, not an app fetch).
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.

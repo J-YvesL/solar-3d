@@ -4,11 +4,12 @@
 
 **Solar System 3D** is a technical POC: an interactive 3D model of the solar system rendered in the browser with Three.js. Body positions are **real**: a small backend API computes where each planet and moon actually is on its orbit today (or at any requested date), and the frontend animates everything forward from there.
 
-One screen, no routing:
+One screen, with lightweight path routing (v2):
 
 - A full-window black canvas with a subtle starfield.
 - The Sun glowing at the center, 8 planets on their visible orbit lines.
 - Click a planet → the camera flies to it, its major moons appear orbiting around it, and an information panel shows facts about the body.
+- A top navigation bar jumps straight to the Sun or any planet; the URL mirrors the focused body (`/earth`, `/mars`, …) with working deep links and browser back/forward (History API only — no router library, doc 06).
 
 ## Feature list
 
@@ -29,6 +30,9 @@ One screen, no routing:
 | F13 | City lights: Earth's night hemisphere shows the real lights of major cities, fading out across the day/night terminator (best seen in the focused view) |
 | F14 | Clicking Earth aims the camera at the visitor's own timezone meridian, so their region faces the camera (derived from the local time already shown in the panel) |
 | F15 | Real seasons: each planet's spin axis leans toward its true ecliptic direction, so solstices and equinoxes happen at the right dates (near a June solstice, Earth's north pole leans toward the Sun and the arctic stays lit) |
+| F16 | i18n: the whole app — UI labels and body content — follows the browser language in en/fr/es/it/de, falling back to English (doc 09) |
+| F17 | Top navigation bar (Sun + 8 planets, system order, panel-badge colors) and per-body URLs (`/earth`, `/mars`, `/sun`, … for all 29 bodies) with deep links and browser back/forward |
+| F18 | Footer shows the app version (`v2.0`) and the credit "Made by Jynfra with ❤️" linking to jynfra.com, alongside the texture attribution |
 
 ## Explicit non-goals
 
@@ -39,9 +43,11 @@ Do **not** implement any of these, even if they seem like natural improvements:
 - No elliptical orbit *rendering* — orbits are drawn as circles (the *position* on the orbit is real, the drawn path is a circle; this is a documented simplification).
 - No time-travel UI (date picker, speed slider) — simulated time runs at a fixed rate. (The API supports a `?date=` param for testing, but the UI does not expose it.)
 - No server-side rendering, no database, no authentication.
-- No i18n — everything is in English.
+- No language picker UI and no language persistence — the locale follows the browser language only (doc 09). *(The v1 "no i18n" non-goal was lifted in v2: F16.)*
 
 ## The two view modes
+
+*(v2: a slim navigation bar overlays the top edge in **both** views — omitted from the diagrams below; spec in doc 06.)*
 
 ### System view (initial)
 
@@ -127,4 +133,5 @@ Do **not** implement any of these, even if they seem like natural improvements:
 | [06-interactions-ui-spec.md](06-interactions-ui-spec.md) | Picking, focus transitions, info panel content, responsive layout, edge cases |
 | [07-coding-standards.md](07-coding-standards.md) | TypeScript/ESLint rules, naming, tests, definition of done |
 | [08-assets-textures.md](08-assets-textures.md) | Texture download URLs, file naming, attribution, loading |
+| [09-i18n.md](09-i18n.md) | Locales, detection rule, UI strings (5 languages), localized body names, translation policy |
 | [BACKLOG.md](BACKLOG.md) | The ordered list of stories to implement, one by one |
