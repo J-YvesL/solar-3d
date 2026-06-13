@@ -19,6 +19,7 @@ export type UiKey =
   | "years"
   | "typeStar"
   | "typePlanet"
+  | "typeDwarfPlanet"
   | "typeMoon"
   | "typeSatellite"
   | "madeBy";
@@ -45,6 +46,7 @@ const dicts: Record<Locale, Dict> = {
     years: "years",
     typeStar: "star",
     typePlanet: "planet",
+    typeDwarfPlanet: "dwarf planet",
     typeMoon: "moon",
     typeSatellite: "satellite",
     madeBy: "Made by {author} with ❤️",
@@ -68,6 +70,7 @@ const dicts: Record<Locale, Dict> = {
     years: "ans",
     typeStar: "étoile",
     typePlanet: "planète",
+    typeDwarfPlanet: "planète naine",
     typeMoon: "lune",
     typeSatellite: "satellite",
     madeBy: "Réalisé par {author} avec ❤️",
@@ -91,6 +94,7 @@ const dicts: Record<Locale, Dict> = {
     years: "años",
     typeStar: "estrella",
     typePlanet: "planeta",
+    typeDwarfPlanet: "planeta enano",
     typeMoon: "luna",
     typeSatellite: "satélite",
     madeBy: "Hecho por {author} con ❤️",
@@ -114,6 +118,7 @@ const dicts: Record<Locale, Dict> = {
     years: "anni",
     typeStar: "stella",
     typePlanet: "pianeta",
+    typeDwarfPlanet: "pianeta nano",
     typeMoon: "luna",
     typeSatellite: "satellite",
     madeBy: "Realizzato da {author} con ❤️",
@@ -137,6 +142,7 @@ const dicts: Record<Locale, Dict> = {
     years: "Jahre",
     typeStar: "Stern",
     typePlanet: "Planet",
+    typeDwarfPlanet: "Zwergplanet",
     typeMoon: "Mond",
     typeSatellite: "Satellit",
     madeBy: "Erstellt von {author} mit ❤️",

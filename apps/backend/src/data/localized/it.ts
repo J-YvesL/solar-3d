@@ -274,6 +274,27 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "L'orbita retrograda di Tritone significa che le maree di Nettuno alla fine lo disgregheranno.",
     },
   },
+  pluto: {
+    name: "Plutone",
+    info: {
+      description:
+        "Il più grande pianeta nano, un mondo ghiacciato lontano nella fascia di Kuiper, celebre per la sua pianura di azoto ghiacciato a forma di cuore mappata da New Horizons nel 2015.",
+      composition:
+        "Nucleo di roccia e ghiaccio d'acqua sotto una crosta di ghiacci di azoto, metano e monossido di carbonio; tenue atmosfera di azoto",
+      funFact:
+        "Plutone e la sua luna Caronte sono così simili per dimensioni da orbitare attorno a un punto nello spazio vuoto tra di loro — un vero sistema doppio.",
+    },
+  },
+  charon: {
+    name: "Caronte",
+    info: {
+      description:
+        "La più grande luna di Plutone, larga la metà di Plutone stesso, con una calotta polare scura e rossastra soprannominata Mordor.",
+      composition: "Ghiaccio d'acqua e roccia; poca o nessuna atmosfera",
+      funFact:
+        "Caronte e Plutone si mostrano permanentemente la stessa faccia — sono reciprocamente bloccati dalle maree.",
+    },
+  },
   iss: {
     name: "ISS",
     info: {

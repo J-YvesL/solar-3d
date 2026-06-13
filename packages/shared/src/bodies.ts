@@ -1,4 +1,4 @@
-export type BodyType = "star" | "planet" | "moon" | "satellite";
+export type BodyType = "star" | "planet" | "dwarfPlanet" | "moon" | "satellite";
 
 export interface BodyInfo {
   description: string;

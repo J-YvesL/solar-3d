@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   parseTle,
   deriveCircularElements,
@@ -64,6 +64,13 @@ describe("raanRateDegPerDay — J2 nodal regression", () => {
 });
 
 describe("getIssTle — fetch fallback chain", () => {
+  // This suite exercises the live-fetch path (with a stubbed fetch), so it opts out
+  // of the global ISS_TLE_OFFLINE=1 set in vitest.config.ts. The dedicated
+  // "offline mode" test re-enables it locally.
+  beforeEach(() => {
+    delete process.env["ISS_TLE_OFFLINE"];
+  });
+
   it("falls back to wheretheiss.at when CelesTrak fails", async () => {
     vi.stubGlobal("fetch", async (url: string) => {
       if (String(url).includes("celestrak")) {

@@ -11,19 +11,20 @@ import { deriveCircularElements, getIssTle, raanRateDegPerDay } from "./tle";
 // rotation angle used to place the ISS orbit plane in the scene's ecliptic frame.
 const EARTH_OBLIQUITY_DEG = 23.44;
 
-/** Assemble the full BodyDto array for 30 bodies at the given date. */
+/** Assemble the full BodyDto array for 32 bodies at the given date. */
 export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
   const deltaDays = daysSinceJ2000(date);
 
-  // 29 non-satellite bodies from the static BODIES table
+  // 31 non-satellite bodies from the static BODIES table
   const regularBodies: BodyDto[] = BODIES.filter((b) => b.type !== "satellite").map(
     (body): BodyDto => {
       let orbitalAngleDeg: number | null = null;
 
       if (body.type === "planet") {
         orbitalAngleDeg = planetOrbitalAngle(body.id as PlanetId, date);
-      } else if (body.type === "moon") {
-        // Formula C: circular uniform motion from doc 02
+      } else if (body.type === "moon" || body.type === "dwarfPlanet") {
+        // Formula C: circular uniform motion from doc 02. Pluto (dwarfPlanet, S28)
+        // uses it too — its eccentricity (0.244) exceeds the Kepler solver's validity.
         const L0 = body.meanLongitudeAtJ2000Deg ?? 0;
         const period = body.orbitalPeriodDays ?? 1;
         orbitalAngleDeg = mod360(L0 + (360 * deltaDays) / period);

@@ -25,6 +25,16 @@ describe("state", () => {
     expect(moon?.orbitalAngleDeg).toBeCloseTo(310.554, 2);
   });
 
+  it("10b: Pluto (dwarf planet, Formula C) @ J2000 → 238.93; @ J2000 + one period → 238.93", async () => {
+    const atJ2000 = (await computeBodyStates(J2000)).find((b) => b.id === "pluto");
+    expect(atJ2000?.type).toBe("dwarfPlanet");
+    expect(atJ2000?.orbitalAngleDeg).toBeCloseTo(238.93, 3);
+
+    const onePeriod = new Date(J2000.getTime() + 90560 * 24 * 3600 * 1000);
+    const atPeriod = (await computeBodyStates(onePeriod)).find((b) => b.id === "pluto");
+    expect(atPeriod?.orbitalAngleDeg).toBeCloseTo(238.93, 3);
+  });
+
   it("11: Earth rotation @ J2000 → 280.461 (GMST anchor); @ J2000 + 48 h → 282.432", async () => {
     const earth0 = (await computeBodyStates(J2000)).find((b) => b.id === "earth");
     expect(earth0?.rotationAngleDeg).toBeCloseTo(280.461, 2);

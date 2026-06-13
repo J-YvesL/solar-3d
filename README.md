@@ -46,3 +46,7 @@ The full written specification lives in [docs/](docs/).
 ## Attribution
 
 Textures: Solar System Scope (CC BY 4.0) — https://www.solarsystemscope.com/textures/
+
+Pluto & Charon maps (S28): New-Horizons-based community texture maps —
+*Pluto Texture Map (Fixed Blur Unmaped Areas)* by 4stron4omi4 and
+*Charon Texture Map Mixed* by bob3studios (DeviantArt). Underlying imagery: NASA/JHUAPL/SwRI.

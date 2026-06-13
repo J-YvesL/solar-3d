@@ -31,16 +31,17 @@ One screen, with lightweight path routing (v2):
 | F14 | Clicking Earth aims the camera at the visitor's own timezone meridian, so their region faces the camera (derived from the local time already shown in the panel) |
 | F15 | Real seasons: each planet's spin axis leans toward its true ecliptic direction, so solstices and equinoxes happen at the right dates (near a June solstice, Earth's north pole leans toward the Sun and the arctic stays lit) |
 | F16 | i18n: the whole app — UI labels and body content — follows the browser language in en/fr/es/it/de, falling back to English (doc 09) |
-| F17 | Top navigation bar (Sun + 8 planets, system order, panel-badge colors) and per-body URLs (`/earth`, `/mars`, `/sun`, … for all 30 bodies) with deep links and browser back/forward |
+| F17 | Top navigation bar (Sun + 8 planets + Pluto, system order, panel-badge colors) and per-body URLs (`/earth`, `/mars`, `/sun`, … for all 32 bodies) with deep links and browser back/forward |
 | F18 | Footer shows the app version (`v2.0`) and the credit "Made by Jynfra with ❤️" linking to jynfra.com, alongside the texture attribution |
 | F19 | The ISS as a 30th body (v3): real orbit computed from a live TLE (fetched by the backend, cached 24 h, committed fallback), clickable with info panel and `/iss` URL, rendered with a committed low-poly 3D model (docs 02/03/05/08) |
+| F20 | Pluto as a **dwarf planet** (v2.2) with its moon Charon (32 bodies total): orbits the Sun beyond Neptune, a nav-bar entry, clickable with a localized "dwarf planet" badge and `/pluto` URL, dedicated textures (docs 02/03/05/06/08/09) |
 
 ## Explicit non-goals
 
 Do **not** implement any of these, even if they seem like natural improvements:
 
 - No eclipse / cast shadows (no shadow maps). The day/night terminator from the point light is enough.
-- No asteroid belt, comets, dwarf planets, or spacecraft. *(The v1/v2 "no artificial satellites" non-goal was lifted in v3 for exactly one object: the ISS — F19, stories S23–S24. No other satellite.)*
+- No asteroid belt, comets, or spacecraft. *(The v1/v2 "no artificial satellites" non-goal was lifted in v3 for exactly one object: the ISS — F19, stories S23–S24. The "no dwarf planets" non-goal was lifted in v2.2 for exactly one system: Pluto + its moon Charon — F20, story S28. No other satellite, dwarf planet, comet or asteroid.)*
 - No elliptical orbit *rendering* — orbits are drawn as circles (the *position* on the orbit is real, the drawn path is a circle; this is a documented simplification).
 - No time-travel UI (date picker, speed slider) — simulated time runs at a fixed rate. (The API supports a `?date=` param for testing, but the UI does not expose it.)
 - No server-side rendering, no database, no authentication.
@@ -109,7 +110,7 @@ Do **not** implement any of these, even if they seem like natural improvements:
 
 | Term | Meaning in this project |
 |------|------------------------|
-| **Body** | Any rendered celestial object: the Sun, a planet, a moon, or a satellite. 30 in total (1 + 8 + 20 + 1, the ISS). |
+| **Body** | Any rendered celestial object: the Sun, a planet, a dwarf planet, a moon, or a satellite. 32 in total (1 sun + 8 planets + 1 dwarf planet + 21 moons + 1 satellite, the ISS). |
 | **Ecliptic** | The plane of Earth's orbit. Our 3D world's XZ plane (`y = 0`) represents the ecliptic; orbital inclinations are small tilts relative to it. |
 | **Epoch / J2000** | The reference instant for orbital data: 2000-01-01 12:00 TT, Julian Date 2451545.0. Orbital elements are given at J2000 plus per-century drift rates. |
 | **Keplerian elements** | The 6 numbers describing an orbit: semi-major axis `a`, eccentricity `e`, inclination `I`, mean longitude `L`, longitude of perihelion `ϖ`, longitude of ascending node `Ω`. |

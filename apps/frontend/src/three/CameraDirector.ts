@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { SolarSystemModel } from "../domain/solarSystemModel";
+import { isPlanetLike } from "../domain/types";
 
 const TRANSITION_DURATION = 1.2; // seconds
 
@@ -279,7 +280,8 @@ export class CameraDirector {
   private computeDist(bodyId: string): number {
     const body = this.model.byId(bodyId);
     if (body === undefined) return 50;
-    if (body.type !== "planet") return body.displayRadius * 8;
+    // Planet-style framing for planets and Pluto (dwarf planet, S28) so child moons fit.
+    if (!isPlanetLike(body.type)) return body.displayRadius * 8;
     const moons = this.model.childrenOf(bodyId);
     if (moons.length === 0) return body.displayRadius * 8;
     const outermost = moons[moons.length - 1]!;

@@ -11,6 +11,8 @@ const TEXTURED_BODY_IDS = [
   "uranus",
   "neptune",
   "moon",
+  "pluto", // S28
+  "charon", // S28
 ];
 const RING_TEXTURE = "saturn-ring";
 const NIGHT_TEXTURE = "earth-night"; // S14 — Earth emissive night map

@@ -1,7 +1,7 @@
 import type { BodiesResponse, BodyDto } from "@solar/shared";
 import { displayRadius, orbitDisplayRadius, moonOrbitDisplayRadius, satelliteOrbitDisplayRadius } from "../domain/scaling";
 import type { Locale } from "../domain/i18n/locale";
-import type { Body } from "../domain/types";
+import { isPlanetLike, type Body } from "../domain/types";
 
 const AU_KM = 149_597_870.7;
 
@@ -54,7 +54,8 @@ export function mapBodies(response: BodiesResponse): Body[] {
     const dr = displayRadiusById.get(dto.id) ?? displayRadius(dto.radiusKm, dto.type, dto.id);
 
     let orbitRadius: number | null = null;
-    if (dto.type === "planet" && dto.semiMajorAxisKm !== null) {
+    if (isPlanetLike(dto.type) && dto.semiMajorAxisKm !== null) {
+      // Planets and Pluto (dwarf planet, S28) orbit the sun on a log-scaled radius.
       orbitRadius = orbitDisplayRadius(dto.semiMajorAxisKm / AU_KM);
     } else if (dto.type === "moon" && dto.parentId !== null) {
       const parentDr = displayRadiusById.get(dto.parentId) ?? 1;

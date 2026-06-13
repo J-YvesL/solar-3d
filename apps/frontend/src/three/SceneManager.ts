@@ -7,6 +7,7 @@ import {
   SIM_DAYS_PER_REAL_SECOND_SYSTEM,
 } from "../domain/simulationClock";
 import type { SolarSystemModel } from "../domain/solarSystemModel";
+import { isPlanetLike } from "../domain/types";
 import {
   createBodyMesh,
   createHitbox,
@@ -152,7 +153,8 @@ export class SceneManager {
   // ── Scene construction ────────────────────────────────────────────────────
 
   private buildSolarSystem(): void {
-    const planets = this.model.bodies.filter((b) => b.type === "planet");
+    // Planets + Pluto (dwarf planet, S28) are built as planet systems with their moons.
+    const planets = this.model.bodies.filter((b) => isPlanetLike(b.type));
 
     for (const planet of planets) {
       const orbitRadius = planet.orbitDisplayRadius ?? 0;
@@ -356,7 +358,7 @@ export class SceneManager {
     let moonParentId: string | null = null;
     if (focusedId !== null) {
       const focused = this.model.byId(focusedId);
-      if (focused?.type === "planet") {
+      if (focused !== undefined && isPlanetLike(focused.type)) {
         moonParentId = focusedId;
       } else if (focused?.type === "moon" || focused?.type === "satellite") {
         moonParentId = focused.parentId;
@@ -416,7 +418,7 @@ export class SceneManager {
       if (id === null) return null;
       const b = this.model.byId(id);
       if (b === undefined) return null;
-      if (b.type === "planet") return id;
+      if (isPlanetLike(b.type)) return id;
       if ((b.type === "moon" || b.type === "satellite") && b.parentId !== null) return b.parentId;
       return null;
     };

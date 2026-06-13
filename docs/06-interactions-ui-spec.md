@@ -44,7 +44,7 @@ stateDiagram-v2
 
 A slim fixed bar along the top edge, visible in **both** view modes (system and focused), above the canvas.
 
-- **Items**: the Sun + the 8 planets, **in system order** (the API order: sun, mercury → neptune). Moons and satellites are never in the bar (filter on `type === "star" || type === "planet"` — S23). When a satellite is focused, its parent planet's item is highlighted, same rule as moons.
+- **Items**: the Sun + the 8 planets + Pluto (the dwarf planet, S28), **in system order** (the API order: sun, mercury → neptune, then pluto). Moons and satellites are never in the bar (filter on `type === "star" || isPlanetLike(type)`, where `isPlanetLike = planet || dwarfPlanet` — S23/S28). When a satellite or a moon (incl. Charon) is focused, its parent's item is highlighted, same rule as moons.
 - **Labels**: the body's localized `name` from the API (so the bar follows the app language for free).
 - **Colors**: each item's text uses its body's `color` (the same hex the InfoPanel badge uses) at full opacity when active/hovered, ~0.75 opacity otherwise.
 - **Active state**: the focused body's item is highlighted (brighter + 2 px underline in the body color). When a **moon** is focused, its **parent planet's** item is highlighted. In system view, no item is active.
@@ -54,13 +54,13 @@ A slim fixed bar along the top edge, visible in **both** view modes (system and 
 
 ## URL routing — story S21
 
-The URL pathname always mirrors the focused body — all **29** bodies, moons included. **History API only** (no router dependency — CLAUDE.md rule 7); mapping is pure in `domain/routes.ts`, browser access only in `react/useRoute.ts` (doc 04).
+The URL pathname always mirrors the focused body — all **32** bodies, moons included (incl. `/pluto` and `/charon`, S28). **History API only** (no router dependency — CLAUDE.md rule 7); mapping is pure in `domain/routes.ts`, browser access only in `react/useRoute.ts` (doc 04).
 
 | URL | State |
 |---|---|
 | `/` | System view (no selection) |
-| `/<bodyId>` (e.g. `/earth`, `/mars`, `/sun`, `/moon`, `/titan`) | That body focused |
-| any other path (e.g. `/pluto`) | `history.replaceState` to `/`, system view |
+| `/<bodyId>` (e.g. `/earth`, `/mars`, `/sun`, `/moon`, `/pluto`, `/charon`) | That body focused |
+| any other path (e.g. `/ceres`) | `history.replaceState` to `/`, system view |
 
 Behavior:
 
@@ -111,15 +111,15 @@ Card style: `background: rgba(10, 14, 24, 0.82); backdrop-filter: blur(6px); bor
 
 Content, top to bottom (all data comes from the `Body` object — no extra fetch):
 
-1. **Name** (h1) + type badge (`star` / `planet` / `moon` / `satellite` (S23) — small uppercase chip in the body's `color`, localized via the doc 09 type keys).
+1. **Name** (h1) + type badge (`star` / `planet` / `dwarf planet` (S28) / `moon` / `satellite` (S23) — small uppercase chip in the body's `color`, localized via the doc 09 type keys).
 2. `description` (from `info`).
 3. Fact rows (label left, value right; omit a row when the field is null):
    - **Composition** — `info.composition`
    - **Radius** — `radiusKm` formatted `6 371 km`
    - **Orbital period** — humanized: `< 2 days` → `"X hours"`; `< 730 days` → `"X days"`; else `"X years"` (1 decimal, divide by 365.25)
    - **Day length (rotation)** — `rotationPeriodHours` humanized: `< 48 h` → hours, else days (1 decimal)
-   - **Distance from parent** — `semiMajorAxisKm` formatted with thin spaces, label "Distance from Sun" for planets / "Distance from <parent name>" for moons
-   - **Moons** — for planets with moons: comma-separated names (from `model.childrenOf(id)`)
+   - **Distance from parent** — `semiMajorAxisKm` formatted with thin spaces, label "Distance from Sun" for planets and the dwarf planet (Pluto) / "Distance from <parent name>" for moons and satellites
+   - **Moons** — for planets and the dwarf planet with moons: comma-separated names (from `model.childrenOf(id)` filtered to `type === "moon"`; Pluto lists Charon, S28)
    - **Your local time** — Earth only: live clock in the visitor's own time zone, ticking every second (`toLocaleTimeString` + `Intl.DateTimeFormat().resolvedOptions().timeZone`), formatted `14:32:07 (Europe/Paris)`. Purely client-side; no astronomical meaning.
 4. **Fun fact** — `info.funFact`, italic, separated by a thin rule.
 
@@ -156,7 +156,8 @@ Number formatting helper (domain or react util): integer grouping with narrow no
 | Double-click / rapid clicks | No double-focus glitch: focusBody on an already-focused id is a no-op |
 | API returns slowly | Loading screen persists; no partial scene |
 | One texture file missing | Body falls back to flat color (doc 08); console.warn, no crash |
-| Open `/pluto` (unknown path) directly | `replaceState("/")`, system view, no error (S21) |
+| Open `/ceres` (unknown path) directly | `replaceState("/")`, system view, no error (S21) |
+| Open `/pluto` or `/charon` directly | Deep-links to Pluto / Charon focused (S28 — both are valid bodies now) |
 | Nav-menu click during a camera transition | Ignored, same rule as canvas picks (S21) |
 | Browser back from `/moon` | Focus Earth (`/earth`), then `/` on a second back — mirrors Back/Escape (S21) |
 | Browser language `pt-BR` (unsupported) | Whole app in English; API called with `lang=en`, never a 400 (S20, doc 09) |

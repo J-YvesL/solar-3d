@@ -45,6 +45,8 @@ export const DISPLAY_SIZE_FACTOR: Record<string, number> = { moon: 0.5 };
 
 // Body size: power law compresses the range, proportions stay visible.
 // The factor applies to the final (clamped) result; unknown/omitted id → 1.
+// S28: a "dwarfPlanet" (Pluto) takes the same power law as a planet/moon — only
+// "star" is special-cased — so no branch is needed here for the new type.
 export function displayRadius(radiusKm: number, type: BodyType, id?: string): number {
   if (type === "star") return 12;
   const base = Math.max(2.5 * Math.pow(radiusKm / EARTH_RADIUS_KM, 0.4), 0.45);
@@ -83,15 +85,17 @@ export function hitboxRadius(displayRadius: number): number {
 
 ### Expected values (assert these in `scaling.test.ts`, tolerance ±0.05)
 
-Body display radii: mercury 1.70, venus 2.45, earth 2.50, mars 1.94, **jupiter 6.52**, saturn 6.06, uranus 4.34, neptune 4.29, sun 12, **moon 0.74** (= 1.49 × the 0.5 `DISPLAY_SIZE_FACTOR`, S17; without the `id` argument: 1.49), ganymede 1.76, titan 1.74, triton 1.35, mimas 0.62, phobos/deimos clamped to 0.45 (the clamp applies before the factor; no factor for them).
+Body display radii: mercury 1.70, venus 2.45, earth 2.50, mars 1.94, **jupiter 6.52**, saturn 6.06, uranus 4.34, neptune 4.29, sun 12, **moon 0.74** (= 1.49 × the 0.5 `DISPLAY_SIZE_FACTOR`, S17; without the `id` argument: 1.49), ganymede 1.76, titan 1.74, triton 1.35, mimas 0.62, phobos/deimos clamped to 0.45 (the clamp applies before the factor; no factor for them), **pluto 1.28** and **charon 0.98** (S28 — plain power law, no factor).
 
-Orbit display radii: mercury 35.0, venus 81.2, earth 105.1, mars 136.2, jupiter 226.8, saturn 271.6, uranus 323.2, neptune 356.4.
+Orbit display radii: mercury 35.0, venus 81.2, earth 105.1, mars 136.2, jupiter 226.8, saturn 271.6, uranus 323.2, neptune 356.4, **pluto 376.5** (= 35 + 170·log₁₀(39.48/0.387), S28 — just beyond Neptune).
 
-Moon orbits, e.g. Jupiter (parent 6.52): io 14.3, europa 21.5, ganymede 28.7, callisto 35.9.
+Moon orbits, e.g. Jupiter (parent 6.52): io 14.3, europa 21.5, ganymede 28.7, callisto 35.9. Charon (S28, Pluto's only moon, index 0, parent 1.28): **2.81** (= 1.28 × 2.2).
 
 Satellite orbit (S23): iss 3.5 (= 2.5 × 1.4); the Moon stays at 5.5 (index 0 — satellites don't shift the moon ranking); iss display radius 0.45 (clamped, like phobos).
 
-Hitbox radii (S26): earth 3.75, sun 18, iss 1.2 (floor), moon 1.2 (floor).
+Hitbox radii (S26): earth 3.75, sun 18, iss 1.2 (floor), moon 1.2 (floor), pluto 1.92, charon 1.46 (S28).
+
+**Pluto–Charon near-binary (S28).** Pluto (display radius 1.28) and Charon (0.98) are a real near-binary; Charon's display orbit (2.81) keeps a clear gap (1.28 + 0.98 = 2.26 < 2.81 between centers) so the two render visibly close but never overlap. This is a faithful consequence of the generic `moonOrbitDisplayRadius` formula — no special-casing.
 
 ## Scene graph
 
@@ -113,6 +117,8 @@ flowchart TD
 ```
 
 `bodyMesh.userData.bodyId = body.id` on every body mesh — the Picker (doc 06) relies on it.
+
+**Pluto in the scene graph (S28).** The dwarf planet is built as a `planetSystem` exactly like the 8 planets (it is planet-like — `isPlanetLike`, doc 04), with its real tilt/pole from doc 03 Tables 5–6 and Charon living in its `moonsGroup` under the standard moon pattern above. No new graph node — only the `planetSystem` filter in `SceneManager` widens from `"planet"` to `isPlanetLike`.
 
 ### Satellites in the scene graph (S23/S24)
 

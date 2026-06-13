@@ -272,6 +272,27 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "Tritons retrograde Umlaufbahn bedeutet, dass Neptuns Gezeiten es letztendlich zerreißen werden.",
     },
   },
+  pluto: {
+    name: "Pluto",
+    info: {
+      description:
+        "Der größte Zwergplanet, eine gefrorene Welt weit draußen im Kuipergürtel, berühmt für seine herzförmige Ebene aus Stickstoffeis, die New Horizons 2015 kartierte.",
+      composition:
+        "Kern aus Gestein und Wassereis unter einer Kruste aus Stickstoff-, Methan- und Kohlenmonoxideis; dünne Stickstoffatmosphäre",
+      funFact:
+        "Pluto und sein Mond Charon sind sich in der Größe so ähnlich, dass sie einen Punkt im leeren Raum zwischen ihnen umkreisen — ein echtes Doppelsystem.",
+    },
+  },
+  charon: {
+    name: "Charon",
+    info: {
+      description:
+        "Plutos größter Mond, halb so breit wie Pluto selbst, mit einer dunklen rötlichen Polkappe mit dem Spitznamen Mordor.",
+      composition: "Wassereis und Gestein; kaum oder keine Atmosphäre",
+      funFact:
+        "Charon und Pluto zeigen einander dauerhaft dieselbe Seite — sie sind gegenseitig durch Gezeitenkräfte gebunden.",
+    },
+  },
   iss: {
     name: "ISS",
     info: {

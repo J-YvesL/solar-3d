@@ -8,10 +8,10 @@ export interface StaticBody {
   radiusKm: number;
   /** Always > 0; retrograde spin encoded via axialTiltDeg > 90 (doc 03 conventions). */
   rotationPeriodHours: number;
-  /** Rotation phase anchor at J2000 (doc 03 Table 5); 0 for the 19 unlisted moons. */
+  /** Rotation phase anchor at J2000 (doc 03 Table 5); 0 for the 20 unlisted moons. */
   rotationAtJ2000Deg: number;
   axialTiltDeg: number;
-  /** Ecliptic longitude the spin pole leans toward (doc 03 Table 6); 0 for the 20 moons. */
+  /** Ecliptic longitude the spin pole leans toward (doc 03 Table 6); 0 for the 21 moons. */
   poleEclipticLonDeg: number;
   color: string;
   semiMajorAxisKm: number | null;
@@ -20,11 +20,11 @@ export interface StaticBody {
   /** vs ecliptic (planets) or parent orbit plane (moons); > 90 = retrograde orbit. Null for the sun. */
   inclinationDeg: number | null;
   orbitalPeriodDays: number | null;
-  /** Starting orbital angle at J2000 (deg). Moons only; null for sun and planets. */
+  /** Starting orbital angle at J2000 (deg). Moons and Pluto (dwarf planet, Formula C); null for sun and planets. */
   meanLongitudeAtJ2000Deg: number | null;
 }
 
-/** All 30 bodies: sun, planets by distance, then moons grouped by parent, then the ISS. */
+/** All 32 bodies: sun, planets by distance, Pluto (dwarf planet), then moons grouped by parent, then the ISS. */
 export const BODIES: StaticBody[] = [
   // ── Sun ──────────────────────────────────────────────────────────────────
   {
@@ -101,6 +101,19 @@ export const BODIES: StaticBody[] = [
     color: "#4565D5",
     semiMajorAxisKm: 4500000000, eccentricity: 0.00859048, inclinationDeg: 1.77004347,
     orbitalPeriodDays: 60182, meanLongitudeAtJ2000Deg: null,
+  },
+
+  // ── Pluto (dwarf planet, S28) ─────────────────────────────────────────────
+  // Positioned by Formula C (circular, like a moon) because e ≈ 0.244 exceeds the
+  // Kepler solver's validity (e < 0.21); doc 03 Table 2b. meanLongitudeAtJ2000Deg
+  // is a real J2000 mean longitude, not a placeholder.
+  {
+    id: "pluto", name: "Pluto", type: "dwarfPlanet", parentId: "sun",
+    radiusKm: 1188.3, rotationPeriodHours: 153.2928, rotationAtJ2000Deg: 0, axialTiltDeg: 122.53,
+    poleEclipticLonDeg: 317.35,
+    color: "#D9C8A8",
+    semiMajorAxisKm: 5906380000, eccentricity: 0.2444, inclinationDeg: 17.16,
+    orbitalPeriodDays: 90560, meanLongitudeAtJ2000Deg: 238.93,
   },
 
   // ── Earth's moons ─────────────────────────────────────────────────────────
@@ -253,6 +266,17 @@ export const BODIES: StaticBody[] = [
     color: "#C8C2D6",
     semiMajorAxisKm: 354759, eccentricity: 0, inclinationDeg: 157.0,
     orbitalPeriodDays: 5.8770, meanLongitudeAtJ2000Deg: 64,
+  },
+
+  // ── Pluto's moon (S28) ────────────────────────────────────────────────────
+  // Charon: a normal moon record (parentId "pluto"); mutually tidally locked with
+  // Pluto (rotationPeriodHours = 6.3872 × 24 = 153.2928, equal to Pluto's).
+  {
+    id: "charon", name: "Charon", type: "moon", parentId: "pluto",
+    radiusKm: 606, rotationPeriodHours: 6.3872 * 24, axialTiltDeg: 0, poleEclipticLonDeg: 0, rotationAtJ2000Deg: 0,
+    color: "#9C8E80",
+    semiMajorAxisKm: 19591, eccentricity: 0, inclinationDeg: 0.0,
+    orbitalPeriodDays: 6.3872, meanLongitudeAtJ2000Deg: 0,
   },
 
   // ── ISS (satellite, S23) ──────────────────────────────────────────────────

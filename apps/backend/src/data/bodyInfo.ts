@@ -1,6 +1,6 @@
 import type { BodyInfo } from "@solar/shared";
 
-/** Info-panel texts for all 29 bodies (Table 4, doc 03). */
+/** Info-panel texts for all 32 bodies (Table 4, doc 03). */
 export const bodyInfo: Record<string, BodyInfo> = {
   sun: {
     description:
@@ -172,6 +172,19 @@ export const bodyInfo: Record<string, BodyInfo> = {
       "Neptune's giant moon, orbiting backwards — almost certainly a captured Kuiper Belt object.",
     composition: "Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere",
     funFact: "Triton's retrograde orbit means Neptune's tides will eventually tear it apart.",
+  },
+  pluto: {
+    description:
+      "The largest dwarf planet, a frozen world far out in the Kuiper Belt, famous for the heart-shaped plain of nitrogen ice mapped by New Horizons in 2015.",
+    composition: "Rock and water-ice core under a crust of nitrogen, methane and carbon-monoxide ices; a thin nitrogen atmosphere",
+    funFact:
+      "Pluto and its moon Charon are so close in size that they orbit a point in empty space between them — a true double system.",
+  },
+  charon: {
+    description:
+      "Pluto's largest moon, fully half the width of Pluto itself, with a dark reddish polar cap nicknamed Mordor.",
+    composition: "Water ice and rock; little to no atmosphere",
+    funFact: "Charon and Pluto permanently show each other the same face — they are mutually tidally locked.",
   },
   iss: {
     description:

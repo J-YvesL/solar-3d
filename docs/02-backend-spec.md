@@ -1,6 +1,6 @@
 # 02 — Backend Specification
 
-The backend is a tiny Express app with **one** business endpoint. Its only job: return all 29 bodies with their static data and their **angular state** (position on orbit + spin orientation) at a given instant, computed from Keplerian elements.
+The backend is a tiny Express app with **one** business endpoint. Its only job: return all 32 bodies with their static data and their **angular state** (position on orbit + spin orientation) at a given instant, computed from Keplerian elements.
 
 ## File layout
 
@@ -17,11 +17,11 @@ apps/backend/src/
 │   └── state.ts         # computeBodyStates(date): assembles BodyDto[]
 └── data/
     ├── keplerianElements.ts   # Table 1 of doc 03
-    ├── bodies.ts              # Tables 2+3+7 of doc 03 (30 records)
+    ├── bodies.ts              # Tables 2+2b+3+7 of doc 03 (32 records)
     ├── bodyInfo.ts            # Table 4 of doc 03 (canonical English)
     ├── issTle.ts              # S23 — committed TLE snapshot (offline fallback, step E)
     └── localized/             # S19 — one file per non-English language (doc 09)
-        ├── fr.ts              # localizedBodies: Record<id, { name; info }> (30 ids)
+        ├── fr.ts              # localizedBodies: Record<id, { name; info }> (32 ids)
         ├── es.ts
         ├── it.ts
         └── de.ts
@@ -44,14 +44,14 @@ Also expose `GET /api/health` → `{ "status": "ok" }` (used by S1 acceptance).
 ```jsonc
 {
   "epochIso": "2026-06-11T08:00:00.000Z",  // the instant actually used
-  "bodies": [ /* 30 × BodyDto, order: sun, planets by distance, then moons grouped by parent, then the iss (S23) */ ]
+  "bodies": [ /* 32 × BodyDto, order: sun, planets by distance, Pluto (dwarf planet, S28), then moons grouped by parent, then the iss (S23) */ ]
 }
 ```
 
 ### DTO types (defined ONCE in `packages/shared/src/bodies.ts`)
 
 ```ts
-export type BodyType = "star" | "planet" | "moon" | "satellite"; // "satellite" added in S23 (the ISS)
+export type BodyType = "star" | "planet" | "dwarfPlanet" | "moon" | "satellite"; // "satellite" added in S23 (ISS); "dwarfPlanet" added in S28 (Pluto)
 
 export interface BodyInfo {
   description: string;
@@ -63,7 +63,7 @@ export interface BodyDto {
   id: string;                  // lowercase, e.g. "earth", "io" — see doc 03 tables
   name: string;                // display name, e.g. "Earth"
   type: BodyType;
-  parentId: string | null;     // null for sun; "sun" for planets; planet id for moons
+  parentId: string | null;     // null for sun; "sun" for planets and Pluto (dwarf planet); planet/dwarf-planet id for moons
   // physical
   radiusKm: number;
   rotationPeriodHours: number; // always > 0 (see doc 03 conventions)
@@ -118,7 +118,8 @@ Inputs: the planet's row of Table 1 (doc 03), and `T` from step A. All angle mat
    Work in radians: Mr = M·π/180. Newton–Raphson, exactly 5 iterations:
        E ← Mr
        repeat 5×:  E ← E − (E − e·sin(E) − Mr) / (1 − e·cos(E))
-   (5 iterations converge to machine precision for e < 0.21 — Mercury is the max.)
+   (5 iterations converge to machine precision for e < 0.21 — Mercury is the max among planets.
+    Pluto's e ≈ 0.244 exceeds this, so Pluto is **not** positioned here — it uses Formula C below, doc 03 Table 2b.)
 
 4. True anomaly:              ν = 2·atan2( √(1+e)·sin(E/2), √(1−e)·cos(E/2) )
 
@@ -127,13 +128,13 @@ Inputs: the planet's row of Table 1 (doc 03), and `T` from step A. All angle mat
 
 **Documented approximation:** `ϖ + ν` is the heliocentric ecliptic longitude only for zero inclination; since planet inclinations are ≤ 7°, we accept this. The frontend draws circular orbits anyway (doc 05). Do not add node/inclination projection math.
 
-### C. Moon orbital angle (circular, uniform)
+### C. Moon orbital angle (circular, uniform) — and Pluto (dwarf planet, S28)
 
 ```
 orbitalAngleDeg = ( L₀ + 360 · ΔdaysJ2000 / orbitalPeriodDays ) mod 360
 ```
 
-with `L₀ = meanLongitudeAtJ2000Deg` from Table 3 (doc 03).
+with `L₀ = meanLongitudeAtJ2000Deg` from Table 3 (doc 03). The branch is taken for `type === "moon"` **and** `type === "dwarfPlanet"`: Pluto's eccentricity exceeds the Kepler solver's validity (step B), so it uses this same circular formula — heliocentric rather than around a planet — with `L₀ = 238.93` and `orbitalPeriodDays = 90560` from Table 2b. The scene draws a circular sun-anchored orbit regardless (doc 05), so the simplification is invisible.
 
 ### D. Rotation angle (every body, including the sun)
 
@@ -245,20 +246,20 @@ These expected values were produced by a reference implementation of the exact a
 11b. Sub-solar longitude (terminator anchoring): for Earth, compute `(orbitalAngleDeg + 180 − rotationAngleDeg) mod 360` → @ `2026-06-11T12:00:00Z` = **0.74 ± 0.5** (sun over ~Greenwich at noon UTC); @ `2026-06-11T00:00:00Z` = **180.75 ± 0.5** (sun over the antimeridian at midnight UTC).
 
 `data/bodies.test.ts`
-12. Exactly 30 bodies; ids unique; 1 star, 8 planets, 20 moons, 1 satellite (S23).
-13. Every non-null `parentId` refers to an existing body; moon counts per planet: earth 1, mars 2, jupiter 4, saturn 7, uranus 5, neptune 1; the iss has `parentId === "earth"` and `type === "satellite"` (S23).
+12. Exactly 32 bodies; ids unique; 1 star, 8 planets, 1 dwarf planet, 21 moons, 1 satellite (S28).
+13. Every non-null `parentId` refers to an existing body; moon counts per parent: earth 1, mars 2, jupiter 4, saturn 7, uranus 5, neptune 1, pluto 1 (Charon, S28); pluto has `parentId === "sun"` and `type === "dwarfPlanet"`; the iss has `parentId === "earth"` and `type === "satellite"` (S23).
 14. Every body id has an entry in `bodyInfo`; every color matches `/^#[0-9A-F]{6}$/i`.
 14b. Every body has `rotationAtJ2000Deg` in `[0, 360)` (added by S13).
-14c. Every body has `poleEclipticLonDeg` in `[0, 360)`; spot checks vs doc 03 Table 6: earth exactly 90, venus 210.19, uranus 77.65, every moon 0.
+14c. Every body has `poleEclipticLonDeg` in `[0, 360)`; spot checks vs doc 03 Table 6: earth exactly 90, venus 210.19, uranus 77.65, pluto 317.35, every moon 0 (S28: pluto, a dwarf planet, has a real non-zero pole).
 
 `routes/bodies.test.ts` (supertest against `createApp()`)
-15. `GET /api/bodies` → 200, `bodies.length === 29`, `epochIso` parses to a valid date, every planet/moon has `orbitalAngleDeg` in `[0, 360)`.
+15. `GET /api/bodies` → 200, `bodies.length === 32`, `epochIso` parses to a valid date, every planet/dwarf-planet/moon has `orbitalAngleDeg` in `[0, 360)`.
 16. `GET /api/bodies?date=2000-01-01T12:00:00Z` → Earth's `orbitalAngleDeg` ≈ 100.380.
 17. `GET /api/bodies?date=banana` → 400.
 18. `GET /api/bodies?lang=fr` → 200; Earth's `name` = `"Terre"` (doc 09 names table) and its `info.description` differs from the English one; `orbitalAngleDeg` identical to the no-`lang` call at the same `date`. (S19)
 19. `GET /api/bodies?lang=pt` → `400 { "error": "Invalid lang" }`; `?lang=` handling combines with `?date=` (invalid date still wins its own 400). (S19)
 20. `GET /api/bodies` and `GET /api/bodies?lang=en` → byte-identical `bodies` for the same `date` (default is `en`). (S19)
-21. Data completeness (unit test on `data/localized/*`): each of fr/es/it/de covers exactly the 30 ids with non-empty `name`, `info.description`, `info.composition`, `info.funFact`; every `name` matches the doc 09 names table. (S19; 29 → 30 in S23)
+21. Data completeness (unit test on `data/localized/*`): each of fr/es/it/de covers exactly the 32 ids with non-empty `name`, `info.description`, `info.composition`, `info.funFact`; every `name` matches the doc 09 names table. (S19; 29 → 30 in S23; 30 → 32 in S28)
 
 `ephemeris/tle.test.ts` (S23 — all offline, no network in tests)
 22. `parseTle` on the reference TLE of step E → epoch `2024-01-01T12:00:00.000Z`, inclination 51.6416, RAAN 247.4627, e 0.0006703, ω 130.5360, M 325.0288, n 15.49512571 (exact field values).

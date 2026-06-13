@@ -270,6 +270,27 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "L'orbite rétrograde de Triton signifie que les marées de Neptune finiront par le déchirer.",
     },
   },
+  pluto: {
+    name: "Pluton",
+    info: {
+      description:
+        "La plus grande planète naine, un monde glacé loin dans la ceinture de Kuiper, célèbre pour sa plaine d'azote gelé en forme de cœur cartographiée par New Horizons en 2015.",
+      composition:
+        "Noyau de roche et de glace d'eau sous une croûte de glaces d'azote, de méthane et de monoxyde de carbone ; fine atmosphère d'azote",
+      funFact:
+        "Pluton et sa lune Charon sont si proches en taille qu'ils orbitent autour d'un point situé dans le vide entre eux — un véritable système double.",
+    },
+  },
+  charon: {
+    name: "Charon",
+    info: {
+      description:
+        "La plus grande lune de Pluton, large de la moitié de Pluton elle-même, avec une calotte polaire sombre et rougeâtre surnommée Mordor.",
+      composition: "Glace d'eau et roche ; peu ou pas d'atmosphère",
+      funFact:
+        "Charon et Pluton se montrent en permanence la même face — ils sont mutuellement verrouillés par les marées.",
+    },
+  },
   iss: {
     name: "ISS",
     info: {

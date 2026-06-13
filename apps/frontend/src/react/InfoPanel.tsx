@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Body } from "../domain/types";
+import { isPlanetLike, type Body } from "../domain/types";
 import type { SolarSystemModel } from "../domain/solarSystemModel";
 import type { Locale } from "../domain/i18n/locale";
 import { t } from "../domain/i18n/strings";
@@ -38,6 +38,7 @@ function humanizeRotation(hours: number, locale: Locale): string {
 function typeLabel(type: BodyType, locale: Locale): string {
   if (type === "star") return t(locale, "typeStar");
   if (type === "planet") return t(locale, "typePlanet");
+  if (type === "dwarfPlanet") return t(locale, "typeDwarfPlanet");
   if (type === "satellite") return t(locale, "typeSatellite");
   return t(locale, "typeMoon");
 }
@@ -70,11 +71,11 @@ function FactRow({ label, value }: { label: string; value: string }) {
 }
 
 export function InfoPanel({ body, model, locale }: Props) {
-  // Only type === "moon" children shown in the Moons row — satellites are excluded (S23)
-  const moons =
-    body.type === "planet"
-      ? model.childrenOf(body.id).filter((b) => b.type === "moon")
-      : [];
+  // Only type === "moon" children shown in the Moons row — satellites are excluded (S23).
+  // Planets and Pluto (dwarf planet, S28) can own moons; Pluto lists Charon.
+  const moons = isPlanetLike(body.type)
+    ? model.childrenOf(body.id).filter((b) => b.type === "moon")
+    : [];
   const distanceLabel =
     (body.type === "moon" || body.type === "satellite") && body.parentId !== null
       ? t(locale, "distanceFromParent", {

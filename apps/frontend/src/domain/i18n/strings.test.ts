@@ -7,7 +7,7 @@ const ALL_KEYS: UiKey[] = [
   "localTime", "composition", "radius", "orbitalPeriod", "dayLength",
   "distanceFromSun", "distanceFromParent", "moons",
   "hours", "days", "years",
-  "typeStar", "typePlanet", "typeMoon", "typeSatellite",
+  "typeStar", "typePlanet", "typeDwarfPlanet", "typeMoon", "typeSatellite",
   "madeBy",
 ];
 
@@ -44,4 +44,7 @@ describe("t — spot checks (doc 09 verbatim)", () => {
   it("it typePlanet", () => expect(t("it", "typePlanet")).toBe("pianeta"));
   it("de typeMoon", () => expect(t("de", "typeMoon")).toBe("Mond"));
   it("fr typePlanet", () => expect(t("fr", "typePlanet")).toBe("planète"));
+  it("fr typeDwarfPlanet", () => expect(t("fr", "typeDwarfPlanet")).toBe("planète naine"));
+  it("en typeDwarfPlanet", () => expect(t("en", "typeDwarfPlanet")).toBe("dwarf planet"));
+  it("de typeDwarfPlanet", () => expect(t("de", "typeDwarfPlanet")).toBe("Zwergplanet"));
 });

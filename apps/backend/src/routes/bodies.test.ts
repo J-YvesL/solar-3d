@@ -11,10 +11,10 @@ afterEach(() => {
 });
 
 describe("GET /api/bodies", () => {
-  it("15: 200, 30 bodies, valid epochIso, planet/moon/satellite angles in [0, 360)", async () => {
+  it("15: 200, 32 bodies, valid epochIso, planet/moon/satellite angles in [0, 360)", async () => {
     const res = await request(app).get("/api/bodies");
     expect(res.status).toBe(200);
-    expect(res.body.bodies).toHaveLength(30);
+    expect(res.body.bodies).toHaveLength(32);
     expect(Number.isNaN(new Date(res.body.epochIso).getTime())).toBe(false);
     for (const body of res.body.bodies) {
       if (body.type !== "star") {

@@ -271,6 +271,27 @@ export const localizedBodies: Record<string, { name: string; info: BodyInfo }> =
         "La órbita retrógrada de Tritón significa que las mareas de Neptuno acabarán por desgarrarlo.",
     },
   },
+  pluto: {
+    name: "Plutón",
+    info: {
+      description:
+        "El mayor planeta enano, un mundo helado en lo profundo del cinturón de Kuiper, famoso por su llanura de hielo de nitrógeno con forma de corazón cartografiada por New Horizons en 2015.",
+      composition:
+        "Núcleo de roca y hielo de agua bajo una corteza de hielos de nitrógeno, metano y monóxido de carbono; tenue atmósfera de nitrógeno",
+      funFact:
+        "Plutón y su luna Caronte son tan parecidos en tamaño que orbitan un punto en el espacio vacío entre ambos — un verdadero sistema doble.",
+    },
+  },
+  charon: {
+    name: "Caronte",
+    info: {
+      description:
+        "La mayor luna de Plutón, con la mitad del ancho del propio Plutón, con un casquete polar oscuro y rojizo apodado Mordor.",
+      composition: "Hielo de agua y roca; poca o ninguna atmósfera",
+      funFact:
+        "Caronte y Plutón se muestran permanentemente la misma cara — están mutuamente anclados por las mareas.",
+    },
+  },
   iss: {
     name: "ISS",
     info: {

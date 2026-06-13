@@ -22,6 +22,10 @@ describe("displayRadius", () => {
   it("deimos clamped to 0.45", () => expect(displayRadius(6.2, "moon")).toBe(0.45));
   it("iss clamped to 0.45 (satellite type, radius 0.055 km)", () =>
     expect(displayRadius(0.055, "satellite")).toBe(0.45));
+  it("pluto → 1.28 (dwarfPlanet, plain power law, S28)", () =>
+    expect(displayRadius(1188.3, "dwarfPlanet")).toBeCloseTo(1.28, 2));
+  it("charon → 0.98 (moon, no factor, S28)", () =>
+    expect(displayRadius(606, "moon")).toBeCloseTo(0.98, 2));
 });
 
 // orbitDisplayRadius is a unit test of the math; inputs are Table 1 au values (doc 03)
@@ -35,6 +39,8 @@ describe("orbitDisplayRadius", () => {
   it("saturn → 271.6", () => expect(orbitDisplayRadius(9.53667594)).toBeCloseTo(271.6, 1));
   it("uranus → 323.2", () => expect(orbitDisplayRadius(19.18916464)).toBeCloseTo(323.2, 1));
   it("neptune → 356.4", () => expect(orbitDisplayRadius(30.06992276)).toBeCloseTo(356.4, 1));
+  it("pluto → 376.5 (39.48 au, just beyond Neptune, S28)", () =>
+    expect(orbitDisplayRadius(5906380000 / 149597870.7)).toBeCloseTo(376.5, 1));
 });
 
 describe("moonOrbitDisplayRadius — Jupiter moons (parent displayRadius ≈ 6.52)", () => {
@@ -50,6 +56,8 @@ describe("satelliteOrbitDisplayRadius — ISS (S23)", () => {
     expect(satelliteOrbitDisplayRadius(2.5)).toBeCloseTo(3.5, 1));
   it("Moon display orbit unchanged at index 0 → 5.5 (satellite excluded from moon ranking)", () =>
     expect(moonOrbitDisplayRadius(2.5, 0)).toBeCloseTo(5.5, 1));
+  it("charon around Pluto (parent 1.28, index 0) → 2.81 (S28)", () =>
+    expect(moonOrbitDisplayRadius(1.28, 0)).toBeCloseTo(2.81, 1));
 });
 
 describe("hitboxRadius (S26)", () => {

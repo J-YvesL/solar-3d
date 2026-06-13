@@ -55,7 +55,20 @@ Notes:
 - Venus and Uranus have `axialTiltDeg > 90` and a positive rotation period — see Conventions.
 - `rotationPeriodHours` values are sidereal periods derived from the IAU 2015 rotation rates (`8640 / |Ẇ deg·day⁻¹|`, source in Table 5). The 6-decimal precision is required: the rotation phase is anchored at J2000 (Table 5) and a rounded period would drift the day/night terminator by tens of degrees per decade (e.g. Saturn would be off by ~163° after 26 years with the 3-decimal value).
 
-## Table 3 — Moons (20)
+## Table 2b — Dwarf planet (Pluto, S28)
+
+Pluto is a **dwarf planet** (`type = "dwarfPlanet"`, doc 02). Unlike the 8 planets it is **not** in Table 1: its orbit is too eccentric (e ≈ 0.244) for the Kepler solver (valid `e < 0.21`, doc 02/`kepler.ts`) and JPL only tabulates it in an extended table with extra correction terms. The backend therefore positions Pluto with the **circular Formula C** (uniform angular speed from `meanLongitudeAtJ2000Deg`), exactly like a moon — but heliocentric. The scene draws a circular, sun-anchored orbit (doc 05 `orbitDisplayRadius`), so the eccentricity and inclination below are **informational DTO fields only** (`eccentricity`, `inclinationDeg`) and do not affect the rendered position; Pluto lands just outside Neptune (≈ 376 vs ≈ 356 display units).
+
+| id | name | parentId | radiusKm | rotationPeriodHours | axialTiltDeg | orbitalPeriodDays | semiMajorAxisKm | eccentricity | inclinationDeg | meanLongitudeAtJ2000Deg | color |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| pluto | Pluto | sun | 1188.3 | 153.2928 | 122.53 | 90560 | 5906380000 | 0.2444 | 17.16 | 238.93 | `#D9C8A8` |
+
+Notes:
+- Source: NASA Pluto Fact Sheet (nssdc.gsfc.nasa.gov) — radius (New Horizons 1188.3 km), sidereal rotation 153.2928 h (retrograde, encoded via `axialTiltDeg = 122.53 > 90`, see Conventions), orbital period 90 560 days, semi-major axis 5 906.38 × 10⁶ km, eccentricity 0.2444, orbital inclination 17.16°.
+- `meanLongitudeAtJ2000Deg = 238.93` is Pluto's J2000 mean longitude (a real value, like the Moon's — not an arbitrary placeholder) so its position is roughly correct; Formula C then advances it.
+- `eccentricity = 0.2444` and `inclinationDeg = 17.16` are stored on the DTO for the info panel; the circular display ignores them (same simplification as moons, here applied to a heliocentric orbit).
+
+## Table 3 — Moons (21)
 
 `a` = semi-major axis around the parent. `meanLongitudeAtJ2000Deg` (column `L₀`) is the orbital angle at J2000: the Moon's value is real; **all others are arbitrary fixed placeholders** (real moon ephemerides are out of scope) — they only guarantee a deterministic, reproducible layout. All these moons are tidally locked: `rotationPeriodHours = orbitalPeriodDays × 24`.
 
@@ -81,8 +94,11 @@ Notes:
 | titania | Titania | uranus | 435910 | 8.7062 | 0.34 | 788.4 | 274 | `#A89F94` |
 | oberon | Oberon | uranus | 583520 | 13.4632 | 0.06 | 761.4 | 327 | `#95897C` |
 | triton | Triton | neptune | 354759 | 5.8770 | 157.0 | 1353.4 | 64 | `#C8C2D6` |
+| charon | Charon | pluto | 19591 | 6.3872 | 0.0 | 606 | 0 | `#9C8E80` |
 
-Moon counts per planet (use in tests): Earth 1, Mars 2, Jupiter 4, Saturn 7, Uranus 5, Neptune 1 → **20 moons, 29 bodies total** (1 sun + 8 planets + 20 moons). Mercury and Venus have none.
+Moon counts per parent (use in tests): Earth 1, Mars 2, Jupiter 4, Saturn 7, Uranus 5, Neptune 1, **Pluto 1 (Charon, S28)** → **21 moons, 32 bodies total** (1 sun + 8 planets + 1 dwarf planet + 21 moons + 1 satellite/ISS). Mercury and Venus have none.
+
+Charon (S28) is a normal moon record (`parentId = "pluto"`); it is tidally locked like the others (`rotationPeriodHours = 6.3872 × 24 = 153.2928`, equal to Pluto's — the pair is mutually locked). Pluto + Charon are a near-binary (radii 1188.3 / 606), so at display scale Charon orbits visibly close to Pluto but does not overlap (doc 05).
 
 For moons, set `axialTiltDeg = 0` and `eccentricity = 0` in the data (circular approximation).
 
@@ -124,10 +140,12 @@ Each body's `info` object has exactly three string fields: `description`, `compo
 | oberon | The outermost large moon of Uranus, old, dark and cratered. | Water ice and rock with a possible ocean layer | Oberon, like all Uranian moons, is named after a Shakespeare character — the fairy king. |
 | triton | Neptune's giant moon, orbiting backwards — almost certainly a captured Kuiper Belt object. | Nitrogen-ice surface over rock and metal; thin nitrogen atmosphere | Triton's retrograde orbit means Neptune's tides will eventually tear it apart. |
 | iss | The International Space Station, a football-field-sized research laboratory orbiting Earth every ~92 minutes, continuously inhabited since November 2000. | Aluminium modules, steel truss segments and eight solar array wings; ~915 m³ of pressurized volume | The ISS travels at about 28 000 km/h — its crew sees 16 sunrises and sunsets every day. |
+| pluto | The largest dwarf planet, a frozen world far out in the Kuiper Belt, famous for the heart-shaped plain of nitrogen ice mapped by New Horizons in 2015. | Rock and water-ice core under a crust of nitrogen, methane and carbon-monoxide ices; a thin nitrogen atmosphere | Pluto and its moon Charon are so close in size that they orbit a point in empty space between them — a true double system. |
+| charon | Pluto's largest moon, fully half the width of Pluto itself, with a dark reddish polar cap nicknamed Mordor. | Water ice and rock; little to no atmosphere | Charon and Pluto permanently show each other the same face — they are mutually tidally locked. |
 
 ## Table 5 — Rotation phase at J2000 (`rotationAtJ2000Deg`)
 
-The rotation angle is **anchored to the real orientation of each body at J2000** so that the day/night terminator is physically correct at the current date (doc 02, step D). One value per body; the **19 moons not listed here use `rotationAtJ2000Deg = 0`** — real rotational phase for minor moons is out of scope (they are tidally locked and untextured, so the anchor is invisible anyway).
+The rotation angle is **anchored to the real orientation of each body at J2000** so that the day/night terminator is physically correct at the current date (doc 02, step D). One value per body; the **20 moons not listed here use `rotationAtJ2000Deg = 0`** (the 19 minor moons + Charon, S28) — real rotational phase for minor moons is out of scope (they are tidally locked, so the anchor is invisible anyway).
 
 | id | rotationAtJ2000Deg | basis |
 |---|---|---|
@@ -141,6 +159,7 @@ The rotation angle is **anchored to the real orientation of each body at J2000**
 | uranus | 115.865 | Horizons-derived — **indicative only** (see note) |
 | neptune | 276.980 | Horizons-derived |
 | moon | 38.194 | Horizons-derived (cross-checks with IAU W₀ = 38.3213) |
+| pluto | 0 | **indicative only (S28)** — Pluto's exact J2000 rotational phase is out of scope; at 39 au the New Horizons map orientation is cosmetic. The anchor is correct as a deterministic starting phase, not as a real sub-solar longitude. |
 
 **Sources.** Rotation rates: B. A. Archinal et al., *Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015*, Celest. Mech. Dyn. Astron. 130:22 (2018). Phase values: derived from **JPL Horizons** sub-solar longitudes at JD 2451545.0 (observer table, quantity 14, center `500@10`, retrieved 2026-06-11), converted to east-positive longitude where Horizons reports west-positive (Mercury, Mars, Jupiter, Saturn, Neptune), corrected for light-time, then expressed in this project's scene frame as `rotationAtJ2000Deg = (orbitalAngleDeg(J2000) + 180 − subSolarLongitudeEast(J2000)) mod 360`. Earth uses GMST(J2000) directly per spec — it agrees with the Horizons-derived value (279.56) to within ~0.9° (ecliptic-vs-equator projection).
 
@@ -150,7 +169,7 @@ The rotation angle is **anchored to the real orientation of each body at J2000**
 
 ## Table 6 — Spin-pole azimuth (`poleEclipticLonDeg`)
 
-`axialTiltDeg` (Table 2) only gives the tilt **magnitude**; the direction the pole leans toward sets the **seasonal phase**. `poleEclipticLonDeg` is the ecliptic longitude toward which the body's spin pole leans — the pole around which the spin is counter-clockwise (for Venus and Uranus, `axialTiltDeg > 90`, this is the **opposite** of the IAU north pole). Without it the scene shows solstices and equinoxes at the wrong dates (e.g. an equinox-like Earth in June, night falling ~2 h too early at European latitudes). One value for the sun + 8 planets; the **20 moons use `poleEclipticLonDeg = 0`** (their `axialTiltDeg` is 0, the azimuth is meaningless — doc 05 explains why the 0 placeholder is harmless).
+`axialTiltDeg` (Table 2) only gives the tilt **magnitude**; the direction the pole leans toward sets the **seasonal phase**. `poleEclipticLonDeg` is the ecliptic longitude toward which the body's spin pole leans — the pole around which the spin is counter-clockwise (for Venus and Uranus, `axialTiltDeg > 90`, this is the **opposite** of the IAU north pole). Without it the scene shows solstices and equinoxes at the wrong dates (e.g. an equinox-like Earth in June, night falling ~2 h too early at European latitudes). One value for the sun + 8 planets + Pluto (S28); the **21 moons use `poleEclipticLonDeg = 0`** (their `axialTiltDeg` is 0, the azimuth is meaningless — doc 05 explains why the 0 placeholder is harmless).
 
 | id | poleEclipticLonDeg | basis (IAU north pole α, δ — equatorial J2000) |
 |---|---|---|
@@ -163,6 +182,7 @@ The rotation angle is **anchored to the real orientation of each body at J2000**
 | saturn | 79.53 | (40.589, +83.537) |
 | uranus | 77.65 | opposite of (257.311, −15.175) — tilt > 90 |
 | neptune | 319.24 | (299.36, +43.46) |
+| pluto | 317.35 | opposite of (132.993, −6.163) — tilt > 90 (S28) |
 
 **Sources.** IAU north-pole directions (α₀, δ₀ at J2000, constant terms) from the same WGCCRE 2015 report as Table 5, converted to ecliptic longitude with obliquity ε = 23.4392911°: `λ = atan2(sin α · cos ε + tan δ · sin ε, cos α) mod 360`; for `axialTiltDeg > 90` (Venus, Uranus) the spin pole is the opposite of the IAU pole — add 180°.
 
@@ -190,9 +210,9 @@ Notes:
 Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
 
 - `keplerianElements.ts` — Table 1 (planets only).
-- `bodies.ts` — Tables 2 + 3 + 7 merged: one record per body (30 records) with physical data, moon orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 19 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 20 moons and the iss).
-- `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 30 ids).
+- `bodies.ts` — Tables 2 + 2b + 3 + 7 merged: one record per body (32 records) with physical data, moon/dwarf-planet orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 20 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 21 moons and the iss). Pluto (Table 2b) is a `dwarfPlanet` carrying `meanLongitudeAtJ2000Deg` like a moon (positioned by Formula C).
+- `bodyInfo.ts` — Table 4 (`Record<string, { description; composition; funFact }>` with all 32 ids).
 - `issTle.ts` — committed TLE snapshot (Table 7 note; doc 02 step E).
-- `localized/fr.ts`, `localized/es.ts`, `localized/it.ts`, `localized/de.ts` — localized `name` + `info` for all 30 ids (doc 09; names verbatim from the doc 09 table, texts translated from Table 4).
+- `localized/fr.ts`, `localized/es.ts`, `localized/it.ts`, `localized/de.ts` — localized `name` + `info` for all 32 ids (doc 09; names verbatim from the doc 09 table, texts translated from Table 4).
 
-A unit test must assert: 30 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).
+A unit test must assert: 32 bodies, ids unique, every `parentId` exists, every body has an info entry (doc 02).

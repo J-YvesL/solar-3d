@@ -16,6 +16,10 @@ const MANIFEST = [
   { file: "uranus.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_uranus.jpg" },
   { file: "neptune.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_neptune.jpg" },
   { file: "moon.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_moon.jpg" },
+  // NOTE: pluto.jpg and charon.jpg (S28) are NOT auto-fetched here — their source is
+  // DeviantArt (tokenized, expiring CDN URLs), so they are manual downloads committed to
+  // the repo, like the ISS GLB. Provenance, authors and the 2048×1024 normalisation step
+  // are documented in doc 08 ("Pluto & Charon maps").
 ];
 
 mkdirSync(TEXTURES_DIR, { recursive: true });

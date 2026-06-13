@@ -1,4 +1,5 @@
 import type { SolarSystemModel } from "../domain/solarSystemModel";
+import { isPlanetLike } from "../domain/types";
 
 interface Props {
   model: SolarSystemModel;
@@ -7,7 +8,8 @@ interface Props {
 }
 
 export function NavMenu({ model, selectedBodyId, focus }: Props) {
-  const items = model.bodies.filter((b) => b.type === "star" || b.type === "planet");
+  // Sun + the 8 planets + Pluto (dwarf planet, S28); moons and satellites never appear.
+  const items = model.bodies.filter((b) => b.type === "star" || isPlanetLike(b.type));
 
   // Highlighted item: the selected body itself, or its parent planet for moons/satellites.
   let activeId: string | null = null;

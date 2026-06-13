@@ -1,4 +1,4 @@
-# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S26)
+# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S27, v2.2: S28)
 
 The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
@@ -246,4 +246,31 @@ Rules of engagement:
 - [x] ISS sub-satellite point matches a live tracker within ~2° (numeric check against `api.wheretheiss.at`, and visual headless render).
 - [x] CelesTrak 403 → wheretheiss.at TLE used; both down → committed snapshot; API never 500s.
 - [x] Disk cache written on success and honored across a backend restart (no re-fetch within 24 h).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S28 — Pluto: dwarf planet (30→32 bodies) + Charon, v2.2
+
+**Read first:** doc 03 (new Table 2b + Charon in Table 3 + texts/poles), doc 02 (`BodyType` + tests 12/13/21), doc 05 (scaling + expected values), doc 06 (NavMenu + URL routing), doc 08 (Pluto/Charon textures), doc 09 (names + `typeDwarfPlanet`), doc 00 (non-goal lifted).
+
+**Goal:** Add **Pluto** as a new body type **dwarf planet** (`dwarfPlanet`) orbiting the Sun beyond Neptune, with its largest moon **Charon**. Pluto is a first-class body: clickable, info panel with a localized "dwarf planet" badge, `/pluto` URL, a nav-bar entry after Neptune, dedicated textures. Charon is a normal moon of Pluto. The release is stamped **v2.2**. This lifts the "no dwarf planets" non-goal for exactly this one system (the ISS precedent).
+
+**Context:** Pluto's orbit is too eccentric (e ≈ 0.244) for the Kepler solver (valid `e < 0.21`, doc 02), so its heliocentric angle uses the **circular Formula C** (mean longitude), like moons — the scene draws a circular, sun-anchored orbit anyway, placing Pluto just outside Neptune. Charon orbits Pluto via the existing moon path. Pluto behaves like a planet at almost every frontend site; a single domain predicate `isPlanetLike(type)` threads the new type cleanly.
+
+**Tasks**
+1. `packages/shared`: add `"dwarfPlanet"` to `BodyType` (doc 02).
+2. Backend data: Pluto + Charon static records in `data/bodies.ts` (doc 03 Table 2b + Table 3), `data/bodyInfo.ts` (doc 03 Table 4), the four `data/localized/*.ts` (doc 09 names + translated info). `ephemeris/state.ts`: Pluto uses Formula C (`else if (type === "moon" || type === "dwarfPlanet")`); update the body-count comments.
+3. Frontend domain: `isPlanetLike(type) = planet || dwarfPlanet` (in `domain/types.ts`); `typeDwarfPlanet` UI key ×5 locales in `domain/i18n/strings.ts` (doc 09).
+4. Frontend wiring via `isPlanetLike`: `api/client.ts` (orbit radius), `react/NavMenu.tsx` (Pluto after Neptune), `react/InfoPanel.tsx` (Moons row + new badge case), `three/SceneManager.ts` (planets filter, pickables, ownerPlanetId), `three/CameraDirector.ts` (planet-style framing). Charon needs no new branch (plain moon).
+5. Textures: add `"pluto"`/`"charon"` to `TEXTURED_BODY_IDS`; download-script manifest entries from a public-domain NASA New Horizons source committed under `public/textures/`; record source + license in doc 08.
+6. Version: `"version": "2.2.0"` in all four `package.json`; footer auto-shows `v2.2`.
+7. Tests: backend 12 (32 bodies: 1 star/8 planet/1 dwarfPlanet/21 moon/1 satellite), 13 (Pluto→sun, Charon→pluto), 14c (Pluto real pole, Charon 0), 21 (32 localized ids); `state.test.ts` (Pluto angle); frontend `scaling.test.ts` (Pluto/Charon radii), `strings.test.ts` (`typeDwarfPlanet`), `routes.test.ts` (`/pluto` now valid).
+
+**Acceptance**
+- [x] `curl "localhost:3001/api/bodies" | jq '.bodies[] | select(.id=="pluto")'` → `type: "dwarfPlanet"`, `parentId: "sun"`, plausible `orbitalAngleDeg`; `?lang=fr` → name `Pluton`. Charon present with `parentId: "pluto"`.
+- [x] System view: Pluto appears in the nav bar after Neptune (tan), its orbit just outside Neptune's; clicking it focuses it with the localized `dwarf planet` badge and Charon in the Moons row.
+- [x] Focused Pluto: Charon orbits close beside it; Back → Charon → Pluto → system; `/pluto` and `/charon` deep-link correctly.
+- [x] Pluto and Charon render textured (delete a texture → flat-color fallback, one warn).
+- [x] Footer shows `v2.2`.
 - [x] `pnpm lint && pnpm typecheck && pnpm test` green.

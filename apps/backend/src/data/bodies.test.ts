@@ -7,13 +7,14 @@ import { localizedBodies as it_ } from "./localized/it";
 import { localizedBodies as de } from "./localized/de";
 
 describe("bodies data", () => {
-  it("12: exactly 30 bodies, unique ids, correct type counts", () => {
-    expect(BODIES).toHaveLength(30);
+  it("12: exactly 32 bodies, unique ids, correct type counts", () => {
+    expect(BODIES).toHaveLength(32);
     const ids = BODIES.map((b) => b.id);
-    expect(new Set(ids).size).toBe(30);
+    expect(new Set(ids).size).toBe(32);
     expect(BODIES.filter((b) => b.type === "star")).toHaveLength(1);
     expect(BODIES.filter((b) => b.type === "planet")).toHaveLength(8);
-    expect(BODIES.filter((b) => b.type === "moon")).toHaveLength(20);
+    expect(BODIES.filter((b) => b.type === "dwarfPlanet")).toHaveLength(1);
+    expect(BODIES.filter((b) => b.type === "moon")).toHaveLength(21);
     expect(BODIES.filter((b) => b.type === "satellite")).toHaveLength(1);
   });
 
@@ -38,6 +39,11 @@ describe("bodies data", () => {
     expect(moonCounts["saturn"]).toBe(7);
     expect(moonCounts["uranus"]).toBe(5);
     expect(moonCounts["neptune"]).toBe(1);
+    expect(moonCounts["pluto"]).toBe(1); // Charon (S28)
+    // Pluto is a dwarf planet orbiting the sun (S28)
+    const pluto = BODIES.find((b) => b.id === "pluto");
+    expect(pluto?.type).toBe("dwarfPlanet");
+    expect(pluto?.parentId).toBe("sun");
     // ISS is a satellite, not a moon (S23)
     const iss = BODIES.find((b) => b.id === "iss");
     expect(iss?.type).toBe("satellite");
@@ -75,12 +81,13 @@ describe("bodies data", () => {
     expect(byId.get("earth")?.poleEclipticLonDeg).toBe(90);
     expect(byId.get("venus")?.poleEclipticLonDeg).toBe(210.19);
     expect(byId.get("uranus")?.poleEclipticLonDeg).toBe(77.65);
+    expect(byId.get("pluto")?.poleEclipticLonDeg).toBe(317.35); // dwarf planet, real pole (S28)
     for (const moon of BODIES.filter((b) => b.type === "moon")) {
       expect(moon.poleEclipticLonDeg, `poleEclipticLonDeg must be 0 for ${moon.id}`).toBe(0);
     }
   });
 
-  it("21: localized files cover all 30 ids with non-empty fields and correct names (doc 09)", () => {
+  it("21: localized files cover all 32 ids with non-empty fields and correct names (doc 09)", () => {
     const expectedNames: Record<string, { fr: string; es: string; it: string; de: string }> = {
       sun:       { fr: "Soleil",   es: "Sol",      it: "Sole",     de: "Sonne"   },
       mercury:   { fr: "Mercure",  es: "Mercurio", it: "Mercurio", de: "Merkur"  },
@@ -111,6 +118,8 @@ describe("bodies data", () => {
       titania:   { fr: "Titania",  es: "Titania",  it: "Titania",  de: "Titania" },
       oberon:    { fr: "Obéron",   es: "Oberón",   it: "Oberon",   de: "Oberon"  },
       triton:    { fr: "Triton",   es: "Tritón",   it: "Tritone",  de: "Triton"  },
+      charon:    { fr: "Charon",   es: "Caronte",  it: "Caronte",  de: "Charon"  },
+      pluto:     { fr: "Pluton",   es: "Plutón",   it: "Plutone",  de: "Pluto"   },
       iss:       { fr: "ISS",      es: "ISS",      it: "ISS",      de: "ISS"     },
     };
 
@@ -123,7 +132,7 @@ describe("bodies data", () => {
 
     for (const { code, data } of langs) {
       const ids = BODIES.map((b) => b.id);
-      expect(Object.keys(data), `${code}: wrong id count`).toHaveLength(30);
+      expect(Object.keys(data), `${code}: wrong id count`).toHaveLength(32);
       for (const id of ids) {
         const entry = data[id];
         expect(entry, `${code}: missing entry for ${id}`).toBeDefined();
