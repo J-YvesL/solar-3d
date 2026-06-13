@@ -9,6 +9,7 @@ const MANIFEST = [
   { file: "venus.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg" },
   { file: "earth.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg" },
   { file: "earth-night.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg" },
+  { file: "earth-clouds.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg" },
   { file: "mars.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_mars.jpg" },
   { file: "jupiter.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg" },
   { file: "saturn.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_saturn.jpg" },

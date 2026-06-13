@@ -111,7 +111,7 @@ flowchart TD
     og --> ol["orbitLine — LineLoop, see below"]
     og --> anchor["anchor (Object3D) — position set<br/>every frame from orbitalAngleDeg"]
     anchor --> tg["tiltGroup (rotation.z = tilt,<br/>rotation.y = pole azimuth − 180°)"]
-    tg --> bm["bodyMesh (rotation.y = spin)<br/>+ ringsMesh for saturn"]
+    tg --> bm["bodyMesh (rotation.y = spin)<br/>+ ringsMesh for saturn<br/>+ cloudsMesh for earth (child of bodyMesh)"]
     anchor --> mg["moonsGroup (visible = false in system view)"]
     mg --> pm["per moon: same orbitGroup/orbitLine/anchor/<br/>tiltGroup/mesh pattern,<br/>radii from moonOrbitDisplayRadius()"]
 ```
@@ -228,6 +228,34 @@ rings.rotation.x = Math.PI / 2;      // ring plane = equator plane, inside tiltG
 ```
 
 Add `rings` inside Saturn's `tiltGroup` (so they tilt with the planet), **not** spinning with `bodyMesh`.
+
+### Earth cloud layer — story S29
+
+Earth — and **only** Earth — carries a translucent cloud layer above its surface: a second sphere, slightly larger than the body, textured with `earth-clouds.jpg` (doc 08). No extra dependency, no shader.
+
+```ts
+const geo = new THREE.SphereGeometry(earthDisplayRadius * CLOUD_RADIUS_FACTOR, 48, 48);
+const mat = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  alphaMap: cloudsTexture,            // luminance → alpha: white = opaque cloud, black = clear sky
+  transparent: true,
+  opacity: CLOUD_OPACITY,             // global opacity multiplied by the alphaMap
+  depthWrite: false,                  // avoid z-fighting/sorting artifacts over the surface
+  roughness: 1, metalness: 0,
+});
+const clouds = new THREE.Mesh(geo, mat);
+clouds.raycast = () => {};            // exclude from picking (see below)
+```
+
+Constants: `CLOUD_RADIUS_FACTOR = 1.01`, `CLOUD_OPACITY = 0.8` (tunable in `[0.6, 0.9]`).
+
+- **Add `clouds` as a child of Earth's `bodyMesh`** (not the `tiltGroup`). The `bodyMesh` already carries the per-frame spin (`rotation.y`) and sits under the `tiltGroup`, so the cloud layer inherits **both the exact spin and the axial tilt** → it is geostationary relative to the surface. This matters because the clouds texture is shaped like the continents: any spin mismatch would slowly drift the clouds off the landmasses and look wrong. Inheritance from `bodyMesh` is what keeps them locked. No change to the animation loop is needed.
+- **Why `alphaMap`, not `map` + low opacity.** `earth-clouds.jpg` is a JPG (no alpha channel): white clouds on a black background. As an `alphaMap` the texture's luminance drives the per-texel alpha (black → transparent clear sky, white → opaque cloud). Used as a plain `map` with a low `opacity` it would instead render as a uniform grey veil darkening the whole globe.
+- **colorSpace.** The clouds texture is loaded with `THREE.NoColorSpace` (doc 08), not `SRGBColorSpace` — it is data (alpha), so its values must be read linearly; sRGB would skew the midtone alpha.
+- **Lit, so it follows the terminator.** `MeshStandardMaterial` is lit by the single `PointLight`, so night-side clouds darken automatically, consistent with the surface and the S14 city lights.
+- **Picking (doc 06, S26).** `updatePickables` traverses `bodyMesh` and collects every child mesh; the cloud sphere, being the outermost geometry (×1.01), would intercept the ray before the surface and break Earth selection. Setting `clouds.raycast = () => {}` keeps it out of raycasts — the spherical hitbox and the surface mesh still drive selection. (Hover's `setEmissive` does traverse onto the cloud mesh, but the additive `0x222222` on a white translucent layer is imperceptible.)
+- **Bloom.** Sunlit white clouds could approach the 0.85 bloom threshold; `CLOUD_OPACITY = 0.8` keeps them under. If a halo appears, lower the opacity (keep ≥ 0.6).
+- **Graceful fallback.** If `"earth-clouds"` is missing from the preload map, the layer is simply not added — Earth renders exactly as before (doc 08 policy).
 
 ### Sun glow (bloom)
 

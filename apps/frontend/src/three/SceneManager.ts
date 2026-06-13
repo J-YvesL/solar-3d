@@ -10,6 +10,7 @@ import type { SolarSystemModel } from "../domain/solarSystemModel";
 import { isPlanetLike } from "../domain/types";
 import {
   createBodyMesh,
+  createEarthClouds,
   createHitbox,
   createOrbitLine,
   createSaturnRings,
@@ -198,6 +199,12 @@ export class SceneManager {
         ) {
           this.earthNightUpdate = applyEarthNightLights(mesh.material, nightTex);
           this.earthMesh = mesh;
+        }
+        // S29 — geostationary cloud layer: child of the spinning bodyMesh, so it
+        // inherits Earth's exact spin + tilt and stays aligned with the continents.
+        const cloudsTex = this.textures.get("earth-clouds");
+        if (cloudsTex !== undefined) {
+          mesh.add(createEarthClouds(planet.displayRadius, cloudsTex));
         }
       }
 

@@ -2,6 +2,10 @@ import * as THREE from "three";
 import type { Body } from "../domain/types";
 import { hitboxRadius } from "../domain/scaling";
 
+// S29 — Earth cloud layer
+const CLOUD_RADIUS_FACTOR = 1.01; // cloud sphere radius = earth displayRadius × this
+const CLOUD_OPACITY = 0.8; // global opacity, multiplied by the alphaMap; tunable in [0.6, 0.9]
+
 /** 3000 uniformly distributed points on a sphere of radius 1800. */
 export function createStarfield(): THREE.Points {
   const positions = new Float32Array(3000 * 3);
@@ -151,4 +155,29 @@ export function createSaturnRings(
   const rings = new THREE.Mesh(geo, mat);
   rings.rotation.x = Math.PI / 2;
   return rings;
+}
+
+/**
+ * Earth cloud layer (S29). A slightly larger lit sphere whose alpha comes from the clouds
+ * texture (white = opaque cloud, black = clear sky). Must be added as a CHILD of Earth's
+ * bodyMesh so it inherits the exact spin + tilt → geostationary, clouds stay aligned with
+ * the continents (doc 05). Excluded from picking via a no-op raycast.
+ */
+export function createEarthClouds(
+  earthDisplayRadius: number,
+  texture: THREE.Texture,
+): THREE.Mesh {
+  const geo = new THREE.SphereGeometry(earthDisplayRadius * CLOUD_RADIUS_FACTOR, 48, 48);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    alphaMap: texture,
+    transparent: true,
+    opacity: CLOUD_OPACITY,
+    depthWrite: false,
+    roughness: 1,
+    metalness: 0,
+  });
+  const clouds = new THREE.Mesh(geo, mat);
+  clouds.raycast = () => {}; // keep Earth picking clean (the larger sphere would occlude the surface)
+  return clouds;
 }

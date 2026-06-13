@@ -12,7 +12,7 @@ The app is **fully standalone**: every texture is downloaded once at development
 
 ## File manifest
 
-All URLs verified responding (HTTP 200) on 2026-06-11. Local file name = body `id` (doc 03); the two non-body files are `saturn-ring.png` and `earth-night.jpg`.
+All URLs verified responding (HTTP 200) on 2026-06-11. Local file name = body `id` (doc 03); the three non-body files are `saturn-ring.png`, `earth-night.jpg` and `earth-clouds.jpg` (S29).
 
 | Local file (`public/textures/`) | Download URL |
 |---|---|
@@ -21,6 +21,7 @@ All URLs verified responding (HTTP 200) on 2026-06-11. Local file name = body `i
 | `venus.jpg` | `https://www.solarsystemscope.com/textures/download/2k_venus_atmosphere.jpg` |
 | `earth.jpg` | `https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg` |
 | `earth-night.jpg` | `https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg` |
+| `earth-clouds.jpg` | `https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg` |
 | `mars.jpg` | `https://www.solarsystemscope.com/textures/download/2k_mars.jpg` |
 | `jupiter.jpg` | `https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg` |
 | `saturn.jpg` | `https://www.solarsystemscope.com/textures/download/2k_saturn.jpg` |
@@ -35,7 +36,7 @@ All URLs verified responding (HTTP 200) on 2026-06-11. Local file name = body `i
 
 `earth-night.jpg` (added in story S14) is **not** a body color map: it is the emissive night-lights map applied to Earth's material only (doc 05, "Earth night lights"). Run `pnpm download-textures` again in S14 to fetch it (the script is idempotent — the 11 original files are skipped) and commit it like the others.
 
-Budget: 12 auto-fetched files (Solar System Scope) + 2 manual files (Pluto/Charon, S28) = 14 textures, ≈ 7–11 MB total. If a downloaded file is 0 bytes or not an image, the script must fail loudly.
+Budget: 13 auto-fetched files (Solar System Scope) + 2 manual files (Pluto/Charon, S28) = 15 textures, ≈ 7–12 MB total. If a downloaded file is 0 bytes or not an image, the script must fail loudly.
 
 ## Download script — `scripts/download-textures.mjs`
 
@@ -53,24 +54,27 @@ Plain Node 24 (built-in `fetch`), no dependencies:
 const TEXTURED_BODY_IDS = ["sun","mercury","venus","earth","mars","jupiter","saturn","uranus","neptune","moon","pluto","charon"];
 const RING_TEXTURE = "saturn-ring";
 const NIGHT_TEXTURE = "earth-night";   // S14 — Earth emissive night map
+const CLOUD_TEXTURE = "earth-clouds";  // S29 — Earth cloud layer (alphaMap, NoColorSpace)
 
 export async function preloadTextures(): Promise<Map<string, THREE.Texture>> {
   const loader = new THREE.TextureLoader();
-  const load = (name: string, ext: string) =>
+  const load = (name: string, ext: string, colorSpace = THREE.SRGBColorSpace) =>
     loader.loadAsync(`/textures/${name}.${ext}`)
-      .then((t) => { t.colorSpace = THREE.SRGBColorSpace; return [name, t] as const; })
+      .then((t) => { t.colorSpace = colorSpace; return [name, t] as const; })
       .catch(() => { console.warn(`texture missing: ${name}`); return null; });
   const entries = await Promise.all([
     ...TEXTURED_BODY_IDS.map((id) => load(id, "jpg")),
     load(RING_TEXTURE, "png"),
     load(NIGHT_TEXTURE, "jpg"),
+    load(CLOUD_TEXTURE, "jpg", THREE.NoColorSpace),
   ]);
   return new Map(entries.filter((e) => e !== null));
 }
 ```
 
 - Called during app boot **in parallel** with the API fetch (doc 04 boot sequence); the scene is only built once both resolve.
-- A missing texture is non-fatal: the body falls back to flat color (`map` absent ⇒ use `color` — doc 05). A missing `earth-night` entry is also non-fatal: Earth simply renders without city lights (doc 05, "Earth night lights").
+- **colorSpace.** Every color map is `SRGBColorSpace` (the default). The one exception is `earth-clouds` (S29): it is used as an **`alphaMap`** (data, not color), so it loads with `THREE.NoColorSpace` — sRGB would skew its midtone alpha (doc 05, "Earth cloud layer").
+- A missing texture is non-fatal: the body falls back to flat color (`map` absent ⇒ use `color` — doc 05). A missing `earth-night` entry is also non-fatal: Earth simply renders without city lights (doc 05, "Earth night lights"). A missing `earth-clouds` entry is non-fatal too: Earth renders without the cloud layer (doc 05, "Earth cloud layer").
 - `.gitignore` must **not** exclude `public/textures`. Add a `apps/frontend/public/textures/.gitkeep` in S1 so the folder exists before S6.
 
 ## ISS model — `public/models/iss.glb` (S24)

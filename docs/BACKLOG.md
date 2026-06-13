@@ -1,4 +1,4 @@
-# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S27, v2.2: S28)
+# BACKLOG — Ordered Implementation Stories (v2: S17–S22, v3: S23–S27, v2.2: S28–S29)
 
 The v1 backlog (S1–S16, initial implementation) is archived at [BACKLOG.v1.archive.md](BACKLOG.v1.archive.md). This file is the **active** backlog.
 
@@ -274,3 +274,29 @@ Rules of engagement:
 - [x] Pluto and Charon render textured (delete a texture → flat-color fallback, one warn).
 - [x] Footer shows `v2.2`.
 - [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S29 — Earth cloud layer (geostationary)
+
+**Read first:** doc 08 (texture manifest + frontend loading), doc 05 ("Earth cloud layer", scene graph, "Earth night lights" for the sibling pattern), doc 06 (S26 hitbox/picking).
+
+**Goal:** Add a translucent **cloud layer** above Earth — and only Earth — for realism: a second, slightly larger sphere textured with `earth-clouds.jpg`, lit so it follows the day/night terminator. **No new body, no API change, no version bump** (stays v2.2).
+
+**Context:** `2k_earth_clouds.jpg` is a JPG (no alpha): white clouds on black. It is used as an **`alphaMap`** (luminance → alpha: black = clear sky, white = opaque cloud), not as a `map` with low opacity (which would grey out the whole globe). Because the clouds texture is shaped like the continents, the layer must be **geostationary** — same spin + tilt as the surface — or it would drift off the landmasses. This is achieved by parenting the cloud sphere to Earth's spinning `bodyMesh` (under the `tiltGroup`), so it inherits both for free; the animation loop is untouched.
+
+**Tasks**
+1. `scripts/download-textures.mjs`: add `{ file: "earth-clouds.jpg", url: ".../2k_earth_clouds.jpg" }` to the manifest; run `pnpm download-textures` (idempotent) and commit the file.
+2. `three/textures.ts`: add `CLOUD_TEXTURE = "earth-clouds"`; extend the `load` helper with an optional `colorSpace` (default sRGB) and load the clouds with `THREE.NoColorSpace` (alphaMap is data).
+3. `three/buildScene.ts`: `createEarthClouds(earthDisplayRadius, texture)` → lit `MeshStandardMaterial` sphere (×`CLOUD_RADIUS_FACTOR` 1.01) with `alphaMap`, `transparent`, `opacity` `CLOUD_OPACITY` 0.8, `depthWrite:false`; `clouds.raycast = () => {}` to keep picking clean.
+4. `three/SceneManager.ts`: in the existing `if (planet.id === "earth")` block, `mesh.add(createEarthClouds(...))` when `earth-clouds` is present (graceful fallback otherwise).
+5. Docs: doc 05 ("Earth cloud layer" subsection + scene-graph diagram), doc 08 (manifest row, budget 13+2=15, NoColorSpace note).
+
+**Acceptance**
+- [ ] Focused Earth: white clouds visible above the surface, continents seen through the gaps (clear sky = transparent), not a uniform grey veil.
+- [ ] Clouds stay locked to the continents as sim time advances (geostationary — no drift between cloud layer and surface).
+- [ ] Night side: clouds darken with the terminator, consistent with the S14 city lights.
+- [ ] Clicking Earth still selects/zooms it (the no-op raycast did not break picking).
+- [ ] Delete `earth-clouds.jpg` → one `console.warn`, Earth renders without clouds, no crash.
+- [ ] No stray bloom halo on the clouds (else lower `CLOUD_OPACITY`).
+- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
