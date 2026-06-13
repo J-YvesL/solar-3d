@@ -1,6 +1,6 @@
 {
   "name": "@solar/backend",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "scripts": {
     "dev": "ISS_TLE_OFFLINE=1 tsx watch src/server.ts",

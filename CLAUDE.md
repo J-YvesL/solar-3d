@@ -38,7 +38,7 @@ pnpm download-textures   # one-shot asset download
 | Texture URLs, download script, attribution, loading | `docs/08-assets-textures.md` |
 | Locales, language detection, UI strings (5 languages), localized body names, `?lang=` | `docs/09-i18n.md` |
 
-The **active backlog** is `docs/BACKLOG.md` (v2 stories, s17 onward) — implement its stories strictly in order. The initial v1 backlog is **archived** at `docs/BACKLOG.v1.archive.md`: no longer maintained, do **not** read it by default. Consult the archive only on explicit request, or as a last resort when diagnosing a hard bug to see how a feature was originally built.
+The **active backlog** is `docs/BACKLOG.md` (v2.3 stories, s30 onward) — implement its stories strictly in order. Previous backlogs are **archived** at `docs/BACKLOG.v1.archive.md` (S1–S16) and `docs/BACKLOG.v2.archive.md` (S17–S29): no longer maintained, do **not** read them by default. Consult an archive only on explicit request, or as a last resort when diagnosing a hard bug to see how a feature was originally built.
 
 ## Hard rules
 
