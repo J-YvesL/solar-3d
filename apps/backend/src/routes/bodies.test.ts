@@ -80,8 +80,10 @@ describe("GET /api/bodies", () => {
     expect(iss.parentId).toBe("earth");
     expect(iss.orbitalAngleDeg).toBeGreaterThanOrEqual(0);
     expect(iss.orbitalAngleDeg).toBeLessThan(360);
-    expect(iss.inclinationDeg).toBeGreaterThanOrEqual(51);
-    expect(iss.inclinationDeg).toBeLessThanOrEqual(52.5);
+    // Ecliptic-frame inclination after the equatorial→ecliptic conversion (S27):
+    // i′ ∈ [i − ε, i + ε] = [~28°, ~75°] depending on the RAAN.
+    expect(iss.inclinationDeg).toBeGreaterThanOrEqual(28);
+    expect(iss.inclinationDeg).toBeLessThanOrEqual(76);
     expect(iss.nodeLonDeg).toBeGreaterThanOrEqual(0);
     expect(iss.nodeLonDeg).toBeLessThan(360);
     expect(iss.semiMajorAxisKm).toBeGreaterThanOrEqual(6600);

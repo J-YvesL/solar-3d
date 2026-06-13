@@ -3,7 +3,8 @@
   "version": "2.1.1",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "ISS_TLE_OFFLINE=1 tsx watch src/server.ts",
+    "dev:online": "tsx watch src/server.ts",
     "build": "tsc",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",

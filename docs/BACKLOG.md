@@ -219,8 +219,31 @@ Rules of engagement:
 5. Document in docs 05 and 06.
 
 **Acceptance**
-- [ ] Focused Earth view: clicking slightly **off** the ISS model focuses the ISS; clicking on Earth's face through the ISS hitbox still focuses Earth.
-- [ ] System view: clicking slightly off a small planet focuses it; clicking far empty space while focused still clears the selection.
-- [ ] Hover near the ISS highlights the whole model and shows the pointer cursor; the focused body still gets no highlight.
-- [ ] Hitboxes are invisible; no fps regression.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` green.
+- [x] Focused Earth view: clicking slightly **off** the ISS model focuses the ISS; clicking on Earth's face through the ISS hitbox still focuses Earth.
+- [x] System view: clicking slightly off a small planet focuses it; clicking far empty space while focused still clears the selection.
+- [x] Hover near the ISS highlights the whole model and shows the pointer cursor; the focused body still gets no highlight.
+- [x] Hitboxes are invisible; no fps regression.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.
+
+---
+
+## S27 — ISS geolocation fix (equatorial→ecliptic frame, J2 precession, TLE fallback source)
+
+**Read first:** doc 02 step E (rewritten), doc 03 Table 7 + ISS constants, doc 05 "Satellites in the scene graph".
+
+**Goal:** The ISS rendered over the wrong place (e.g. India instead of Malaysia) — a longitude offset, "as if a Y-axis rotation were missing". Two stacked causes, both fixed here:
+1. **Frame error (≤ 23.44°).** TLE inclination/RAAN are equatorial (vs Earth's equator + vernal point); the scene renders in the ecliptic plane. Feeding raw equatorial elements tilts the orbit plane by the obliquity, shifting the sub-satellite point up to ~23° (mostly longitude). The old "documented approximation" accepted this — no longer acceptable.
+2. **Stale orbit plane.** CelesTrak 403s the host IP, so `getIssTle()` silently fell back to a 2024 snapshot; the plane regresses ~5°/day, so a months-old node is far off.
+
+**Tasks**
+1. `ephemeris/frames.ts` (new): `equatorialToEcliptic(i, Ω, u, ε)` → `{ inclinationDeg, nodeLonDeg, argLatDeg }` via `R = Rx(−ε)·Rz(Ω)·Rx(i)` z–x–z decomposition (doc 02 step E).
+2. `ephemeris/tle.ts`: `raanRateDegPerDay(tle, a)` = J2 nodal regression (`J2 = 1.08263e-3`, `Re = 6378.137`); fetch chain CelesTrak → `wheretheiss.at/v1/satellites/25544/tles` (JSON) → cache → snapshot; disk cache at `apps/backend/.cache/iss-tle.json` (gitignored, disabled under vitest).
+3. `ephemeris/state.ts`: propagate `uEq` and the precessing `ΩEq` from the TLE epoch, then `equatorialToEcliptic` → ISS DTO `inclinationDeg`/`nodeLonDeg`/`orbitalAngleDeg`.
+4. `data/issTle.ts`: refresh the committed snapshot.
+5. Tests: `frames.test.ts` (analytic conversion cases), J2 rate, fetch-chain fallback, updated state expectations.
+
+**Acceptance**
+- [x] ISS sub-satellite point matches a live tracker within ~2° (numeric check against `api.wheretheiss.at`, and visual headless render).
+- [x] CelesTrak 403 → wheretheiss.at TLE used; both down → committed snapshot; API never 500s.
+- [x] Disk cache written on success and honored across a backend restart (no re-fetch within 24 h).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` green.

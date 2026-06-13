@@ -3,8 +3,13 @@ import { BODIES } from "../data/bodies";
 import { bodyInfo } from "../data/bodyInfo";
 import { type PlanetId } from "../data/keplerianElements";
 import { daysSinceJ2000 } from "./julian";
+import { equatorialToEcliptic } from "./frames";
 import { mod360, planetOrbitalAngle } from "./kepler";
-import { deriveCircularElements, getIssTle } from "./tle";
+import { deriveCircularElements, getIssTle, raanRateDegPerDay } from "./tle";
+
+// Earth's obliquity (doc 03 Table — Earth axialTiltDeg): the equatorial→ecliptic
+// rotation angle used to place the ISS orbit plane in the scene's ecliptic frame.
+const EARTH_OBLIQUITY_DEG = 23.44;
 
 /** Assemble the full BodyDto array for 30 bodies at the given date. */
 export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
@@ -59,9 +64,20 @@ export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
   const { orbitalPeriodDays, semiMajorAxisKm, u0 } = deriveCircularElements(issTle);
   const deltaFromTleEpoch =
     (date.getTime() - issTle.epochDate.getTime()) / 86_400_000;
-  const orbitalAngleDeg = mod360(
-    u0 + 360 * issTle.meanMotion * deltaFromTleEpoch,
+
+  // Propagate the argument of latitude and the J2-precessing node from the TLE epoch,
+  // then convert the equatorial elements to the scene's ecliptic frame (doc 02 step E).
+  const argLatEquatorial = u0 + 360 * issTle.meanMotion * deltaFromTleEpoch;
+  const raanEquatorial =
+    issTle.raan + raanRateDegPerDay(issTle, semiMajorAxisKm) * deltaFromTleEpoch;
+  const ecliptic = equatorialToEcliptic(
+    issTle.inclination,
+    raanEquatorial,
+    argLatEquatorial,
+    EARTH_OBLIQUITY_DEG,
   );
+
+  const orbitalAngleDeg = ecliptic.argLatDeg;
   const rotationAngleDeg = orbitalAngleDeg; // LVLH: same face toward Earth
   const rotationPeriodHours = orbitalPeriodDays * 24;
 
@@ -82,8 +98,8 @@ export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
     color: issStatic.color,
     semiMajorAxisKm,
     eccentricity: 0,
-    inclinationDeg: issTle.inclination,
-    nodeLonDeg: issTle.raan,
+    inclinationDeg: ecliptic.inclinationDeg,
+    nodeLonDeg: ecliptic.nodeLonDeg,
     orbitalPeriodDays,
     orbitalAngleDeg,
     rotationAngleDeg,

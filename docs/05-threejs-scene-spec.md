@@ -116,7 +116,7 @@ flowchart TD
 
 ### Satellites in the scene graph (S23/S24)
 
-The ISS lives in **Earth's `moonsGroup`** — visible and pickable only in focused view, exactly like the Moon — with one extra wrapper for the ascending node, which satellites (unlike moons) cannot ignore: the ISS plane precesses ~5°/day, and the TLE's RAAN is what puts the orbit plane where it really is.
+The ISS lives in **Earth's `moonsGroup`** — visible and pickable only in focused view, exactly like the Moon — with one extra wrapper for the ascending node, which satellites (unlike moons) cannot ignore: the ISS plane precesses ~5°/day (J2 nodal regression, applied in the backend), and the node longitude is what puts the orbit plane where it really is.
 
 ```
 moonsGroup
@@ -125,7 +125,7 @@ moonsGroup
         └── orbitLine + anchor → mesh                   ← same pattern as a moon
 ```
 
-Two nested groups (yaw first, then inclination) — do not collapse them into one Euler; nesting keeps the same unambiguous convention as the tilt group. With the project's angle convention (`x = R·cos θ, z = −R·sin θ`, CCW from +X), the ascending node sits at the local +X axis and `orbitalAngleDeg` is the argument of latitude — exactly what the backend serves (doc 02 step E). Equatorial→ecliptic frame simplification documented in doc 02.
+Two nested groups (yaw first, then inclination) — do not collapse them into one Euler; nesting keeps the same unambiguous convention as the tilt group. With the project's angle convention (`x = R·cos θ, z = −R·sin θ`, CCW from +X), the ascending node sits at the local +X axis and `orbitalAngleDeg` is the argument of latitude — exactly what the backend serves (doc 02 step E). The backend now serves `inclinationDeg`/`nodeLonDeg`/`orbitalAngleDeg` already converted from the equatorial TLE frame into this ecliptic frame, so the scene needs no change — it renders the ISS over its true sub-satellite point.
 
 - **S23 mesh**: standard moon sphere (`SphereGeometry(0.45, 32, 32)`, flat `color` material — no texture).
 - **S24 mesh**: the committed `iss.glb` (doc 08) replaces the sphere. Normalize the model so its **bounding box fits in ~0.9 units** (the S23 sphere's footprint): compute `Box3().setFromObject`, scale by `0.9 / maxDimension`. Set `userData.bodyId = "iss"` on **every descendant mesh** (the Picker raycasts children, doc 06). The spin `rotation.y = degToRad(rotationAngleDeg)` (no tilt group, `poleEclipticLonDeg = 0` ⇒ compensation cancels) gives the real LVLH attitude for free since `rotationAngleDeg = orbitalAngleDeg`; apply at most **one fixed corrective rotation** on the model root so the truss/solar arrays read correctly — verify visually once, like the view-offset sign.

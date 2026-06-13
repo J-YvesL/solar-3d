@@ -180,7 +180,8 @@ Static data only — the **orbit comes from a live TLE at request time** (doc 02
 
 Notes:
 - `radiusKm = 0.055` (109 m solar-array span → ~55 m half-extent). The display clamp of doc 05 applies — the ISS renders at the 0.45-unit floor, like Phobos. Hugely out of scale, deliberately: at true scale it would be invisible (~0.00002 units).
-- TLE-derived fields filled by the backend per request: `orbitalAngleDeg`, `orbitalPeriodDays` (≈ 0.0645), `inclinationDeg` (≈ 51.6), `nodeLonDeg`, `semiMajorAxisKm` (≈ 6 800), `rotationPeriodHours` (= orbitalPeriodDays × 24).
+- TLE-derived fields filled by the backend per request: `orbitalAngleDeg`, `orbitalPeriodDays` (≈ 0.0645), `inclinationDeg`, `nodeLonDeg`, `semiMajorAxisKm` (≈ 6 800), `rotationPeriodHours` (= orbitalPeriodDays × 24). Note `inclinationDeg`/`nodeLonDeg` are the **ecliptic-frame** values after the equatorial→ecliptic conversion (doc 02 step E), so `inclinationDeg` is ~63° (TLE's 51.6° equatorial inclination + obliquity), **not** the raw 51.6° TLE value.
+- **ISS orbit-plane constants** (doc 02 step E): Earth's second zonal harmonic `J2 = 1.08263e-3` (dimensionless) and equatorial radius `Re = 6378.137 km` (WGS-84) — used for the J2 nodal regression (~−5°/day). Earth's obliquity ε = 23.44° (Earth `axialTiltDeg`, Table 2) is the equatorial→ecliptic rotation angle.
 - The committed fallback TLE lives in `data/issTle.ts` with its retrieval date in a comment; refresh it occasionally when touching the backend (not a hard requirement — only the phase goes stale, the orbit shape stays right).
 - The name `ISS` is identical in all five languages (doc 09).
 

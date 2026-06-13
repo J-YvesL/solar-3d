@@ -155,9 +155,15 @@ matches the real sub-solar longitude at any date — i.e. the day/night terminat
 
 The ISS's orbit changes daily (atmospheric drag + monthly reboosts), so its elements come from a **TLE** (Two-Line Element set) instead of a static table. A TLE is fixed-width text; parse it by hand — **no dependency** (no SGP4: with `e ≈ 0.0005` the project's existing circular approximation applies, same as the moons).
 
-**Source:** `https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE` (native Node `fetch`).
+**Sources (tried in order, first success wins):**
+1. CelesTrak — `https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE` (plain text).
+2. wheretheiss.at — `https://api.wheretheiss.at/v1/satellites/25544/tles` (JSON `{ line1, line2 }`), fallback when CelesTrak is unreachable or blocks the host (it 403s some server IPs).
 
-**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable), TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
+Both via native Node `fetch`.
+
+**Offline mode (`ISS_TLE_OFFLINE=1`):** when set, `getIssTle()` never touches the network — it serves the disk cache (even if stale) or the committed snapshot. The `dev` script sets it so local development never queries these services (repeated dev-server restarts otherwise get the host IP blocked). Production (`build` + run) leaves it unset and fetches normally; `dev:online` is the opt-in for a deliberate local refresh. The J2 propagation keeps the snapshot-based position accurate for weeks, so offline dev still renders the ISS correctly.
+
+**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable) **backed by a disk cache** at `apps/backend/.cache/iss-tle.json` (gitignored) so the once-per-24 h budget survives dev-server restarts — the in-memory cache alone re-fetches on every restart, which is what gets the host IP throttled. The disk cache is loaded lazily on first call and written (with its `fetchedAt`) after every successful fetch; disabled under vitest to keep unit tests hermetic, and all disk I/O is best-effort (a read-only or corrupt cache never throws). TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure of **both** sources (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
 
 **Parsing (`parseTle(line1, line2)`)** — 1-indexed fixed columns:
 
@@ -186,15 +192,33 @@ semiMajorAxisKm   = (μ · (86400/n)² / 4π²)^(1/3)            // μ = 398 600
 u₀                = (ω + M) mod 360                         // argument of latitude at the TLE epoch — ≈ 95.565 for the TLE above
 ```
 
-**State at the requested date** (same circular formula as the moons, anchored on the TLE epoch instead of J2000):
+**State at the requested date** (same circular formula as the moons, anchored on the TLE epoch instead of J2000), in the **equatorial** TLE frame:
 
 ```
 ΔdaysSinceTleEpoch = (date − tleEpoch) / 86 400 000
-orbitalAngleDeg    = (u₀ + 360 · n · ΔdaysSinceTleEpoch) mod 360
-rotationAngleDeg   = orbitalAngleDeg        // LVLH attitude: the ISS keeps the same face toward Earth (tidally-locked equivalent)
+uEq                = u₀ + 360 · n · ΔdaysSinceTleEpoch        // argument of latitude (equatorial)
+Ω̇                  = −(3/2) · J2 · (Re / a)² · (360 · n) · cos i   // J2 nodal regression, deg/day, ≈ −4.96 for the ISS (e ≈ 0 ⇒ p ≈ a)
+ΩEq                = Ω₀ + Ω̇ · ΔdaysSinceTleEpoch             // precessed RAAN (equatorial)
 ```
 
-DTO mapping: `inclinationDeg` and `nodeLonDeg` straight from the TLE, `eccentricity: 0`, `rotationPeriodHours = orbitalPeriodDays × 24`. **Documented approximation:** TLE inclination/RAAN are equatorial (vs Earth's equator and the vernal point) but the scene applies them in the ecliptic frame like every moon orbit — plane-orientation error ≤ the 23.44° obliquity, accepted for this POC (same class as the ignored Ω of the moons). The position *along* the orbit and the period are unaffected.
+with `J2 = 1.08263e-3` and `Re = 6378.137 km` (doc 03). The ISS orbit plane regresses ~5°/day, so the RAAN **must** be propagated from the TLE epoch or the rendered position drifts up to ~5° between TLE refreshes.
+
+**Equatorial → ecliptic conversion (`ephemeris/frames.ts`).** TLE inclination/RAAN are measured against Earth's **equator** and the vernal point, but the frontend renders every orbit in the **ecliptic** plane (doc 05). Using the raw equatorial elements tilts the orbit plane by the obliquity and shifts the rendered sub-satellite point by up to ~23° (mostly in longitude — the "missing Y rotation" symptom). Convert with `equatorialToEcliptic(i, ΩEq, uEq, ε)`, ε = Earth's obliquity 23.44° (doc 03):
+
+```
+R    = Rx(−ε) · Rz(Ω) · Rx(i)         // orbit orientation, equatorial→ecliptic (z-up)
+i′   = acos(R·ẑ · ẑ)                   // tilt from orbit normal (3rd column of R)
+Ω′   = atan2(nₓ, −n_y)                 // ascending-node longitude, n = orbit normal
+δ    = atan2(n · (N × c₁), N · c₁)     // shift of u: N = node dir, c₁ = R's 1st column (equatorial u = 0)
+u′   = (uEq + δ) mod 360
+```
+
+```
+orbitalAngleDeg  = u′                  // ecliptic argument of latitude
+rotationAngleDeg = orbitalAngleDeg     // LVLH attitude: the ISS keeps the same face toward Earth
+```
+
+DTO mapping: `inclinationDeg = i′`, `nodeLonDeg = Ω′`, `orbitalAngleDeg = u′`, `eccentricity: 0`, `rotationPeriodHours = orbitalPeriodDays × 24`. Residual error vs real trackers is < ~1° (TLE freshness + circular approximation). This replaces the earlier POC simplification that fed raw equatorial elements into the ecliptic scene.
 
 All `mod 360` operations must return values in `[0, 360)` **including for negative inputs**: use `((x % 360) + 360) % 360`.
 
