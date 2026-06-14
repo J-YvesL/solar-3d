@@ -48,7 +48,7 @@ The **active backlog** is `docs/BACKLOG.md` (v2.3 stories, s30 onward) — imple
 4. **No Three.js object in React state/props/context, ever.** React ↔ Three communication only via the `SceneManager` public API (doc 04).
 5. **Assets** (textures, models): only from the sources in doc 08, downloaded at dev time, **committed** to the repo. The **frontend** makes zero non-localhost requests. The backend's single allowed external request is the ISS TLE (CelesTrak, with `api.wheretheiss.at` as the only fallback source when CelesTrak is blocked — doc 02 step E): at most once per 24 h (disk-cached so restarts don't re-fetch), committed fallback, a fetch failure never breaks the API. **Tests and the dev server run offline** via `ISS_TLE_OFFLINE=1` (serves the committed snapshot, never hits the network): set by the `dev` script and by `apps/backend/vitest.config.ts` for the whole test suite — only the TLE fetch-chain tests opt back online (stubbed fetch). Keep tests offline; never rely on network in tests.
 6. TypeScript `strict` everywhere; no `any`, no `@ts-ignore` (doc 07).
-7. Do not add dependencies beyond those listed in docs 01/07 (express, cors, react, react-dom, three, concurrently, tsx, vitest, supertest, eslint/prettier toolchain). No state managers, no CSS frameworks, no animation libs, no test DOM libs.
+7. Do not add dependencies beyond those listed in docs 01/07 (express, cors, winston, react, react-dom, three, concurrently, tsx, vitest, supertest, eslint/prettier toolchain). No state managers, no CSS frameworks, no animation libs, no test DOM libs.
 8. Do not implement non-goals (doc 00): no shadow maps, no date picker UI, no extra bodies (the ISS — S23/S24 — is the only spec'd exception), no language picker UI.
 
 ## Definition of done

@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { SNAPSHOT_LINE1, SNAPSHOT_LINE2 } from "../data/issTle";
+import { createLogger } from "../logger";
+
+const logger = createLogger("iss-tle");
 
 export interface ParsedTle {
   epochDate: Date;
@@ -157,7 +160,7 @@ export async function getIssTle(
 
   if (tleCache !== null && now - tleCache.fetchedAt < TTL_MS) {
     const ageH = ((now - tleCache.fetchedAt) / 3_600_000).toFixed(1);
-    console.log(`[iss-tle] serving cached TLE (age ${ageH}h, epoch ${tleCache.tle.epochDate.toISOString()})`);
+    logger.info(`serving cached TLE (age ${ageH}h, epoch ${tleCache.tle.epochDate.toISOString()})`);
     return tleCache.tle;
   }
 
@@ -166,18 +169,18 @@ export async function getIssTle(
   // accurate for weeks (doc 02 step E).
   if (isOffline()) {
     const src = tleCache !== null ? "disk cache" : "committed snapshot";
-    console.log(`[iss-tle] OFFLINE mode → serving ${src} (no network)`);
+    logger.info(`OFFLINE mode → serving ${src} (no network)`);
     return tleCache?.tle ?? getSnapshotTle();
   }
 
   if (now - lastFailTime < RETRY_COOLDOWN_MS) {
     const src = tleCache !== null ? "cached TLE" : "committed snapshot";
-    console.log(`[iss-tle] in retry cooldown (last failure < 30 min ago) → serving ${src}`);
+    logger.warn(`in retry cooldown (last failure < 30 min ago) → serving ${src}`);
     return tleCache?.tle ?? getSnapshotTle();
   }
 
   // Primary CelesTrak, then the wheretheiss.at fallback; first success wins.
-  console.log("[iss-tle] cache stale/empty → fetching fresh TLE from the network");
+  logger.info("cache stale/empty → fetching fresh TLE from the network");
   let lines = await fetchCelesTrak(fetchFn);
   let source = "CelesTrak";
   if (lines === null) {
@@ -188,16 +191,16 @@ export async function getIssTle(
     const tle = parseTle(lines[0], lines[1]);
     tleCache = { tle, fetchedAt: now };
     saveDiskCache(lines[0], lines[1], now);
-    console.log(`[iss-tle] fetched fresh TLE from ${source} (epoch ${tle.epochDate.toISOString()}) → cached on disk`);
+    logger.info(`fetched fresh TLE from ${source} (epoch ${tle.epochDate.toISOString()}) → cached on disk`);
     return tle;
   }
 
   lastFailTime = now;
   if (tleCache !== null) {
-    console.log("[iss-tle] both sources failed → serving previously cached TLE");
+    logger.warn("both sources failed → serving previously cached TLE");
     return tleCache.tle;
   }
-  console.log("[iss-tle] both sources failed and no cache → serving committed snapshot");
+  logger.warn("both sources failed and no cache → serving committed snapshot");
   const snapshot = getSnapshotTle();
   tleCache = { tle: snapshot, fetchedAt: 0 }; // fetchedAt 0 → will retry after TTL
   return snapshot;
@@ -221,7 +224,7 @@ async function fetchCelesTrak(
     if (line1 === "" || line2 === "") throw new Error("malformed TLE");
     return [line1, line2];
   } catch (err) {
-    console.log(`[iss-tle] CelesTrak fetch failed: ${String(err)}`);
+    logger.warn(`CelesTrak fetch failed: ${String(err)}`);
     return null;
   }
 }
@@ -239,7 +242,7 @@ async function fetchWhereTheIss(
     }
     return [body.line1.trim(), body.line2.trim()];
   } catch (err) {
-    console.log(`[iss-tle] wheretheiss.at fetch failed: ${String(err)}`);
+    logger.warn(`wheretheiss.at fetch failed: ${String(err)}`);
     return null;
   }
 }

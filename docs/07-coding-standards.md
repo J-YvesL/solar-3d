@@ -56,6 +56,21 @@ Root `.prettierrc`: `{ "printWidth": 100, "singleQuote": false, "trailingComma":
 - What must NOT be tested: anything in `frontend/src/three` or `src/react` (WebGL/DOM out of scope — manual checks in the BACKLOG cover them). Do not install jsdom, testing-library, or playwright.
 - Numeric assertions use explicit tolerances: `expect(x).toBeCloseTo(100.380, 2)`.
 
+## Logging (backend)
+
+Use `createLogger(component)` from `apps/backend/src/logger.ts` (Winston 3). One logger per module, created at module scope.
+
+```ts
+const logger = createLogger("my-component");
+logger.info("something happened");
+logger.warn("degraded path taken");
+logger.debug("verbose detail");   // hidden at default level
+```
+
+Output format: `YYYY-MM-DD HH:mm:ss [component] level: message`.
+
+Default level is `info`; set `LOG_LEVEL=debug` in the environment to see `debug` lines. Keep `debug` for per-request cache hits or other high-frequency events. Keep `warn` for degraded-but-safe paths (fallbacks, retries). Use `error` only when the request will fail.
+
 ## Git
 
 - Commit after each backlog story, message: `S<n>: <imperative summary>` (e.g. `S4: kepler ephemeris + /api/bodies endpoint`).
@@ -67,4 +82,4 @@ Root `.prettierrc`: `{ "printWidth": 100, "singleQuote": false, "trailingComma":
 2. `pnpm typecheck` — clean.
 3. `pnpm test` — all green, including previous stories' tests.
 4. The story's own acceptance criteria (BACKLOG) verified — manual ones included.
-5. No TODO/FIXME left in code; no dead code; no `console.log` (a single `console.warn` for missing textures is allowed, doc 06).
+5. No TODO/FIXME left in code; no dead code; no `console.log` or `console.warn` in backend code — use the Winston logger (see Logging section below). A single `console.warn` for missing textures in the frontend is still allowed (doc 06).

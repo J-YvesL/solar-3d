@@ -1,14 +1,14 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import { bodiesRouter } from "./routes/bodies";
+import { createLogger } from "./logger";
 
-/**
- * Logs every request and its response status. For any non-2XX response it also
- * logs an error detail (the response body's `error`/`message`, or the status text).
- */
+const logger = createLogger("http");
+
+/** Logs incoming requests and their response status. */
 function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const start = Date.now();
-  console.log(`[http] → ${req.method} ${req.originalUrl} (incoming)`);
+  logger.info(`request ${req.method} ${req.originalUrl}`);
 
   // Capture the response body so a non-2XX status can report why it failed.
   let payload: unknown;
@@ -20,11 +20,11 @@ function requestLogger(req: Request, res: Response, next: NextFunction): void {
 
   res.on("finish", () => {
     const ms = Date.now() - start;
-    const line = `[http] ← ${req.method} ${req.originalUrl} ${res.statusCode} (${ms}ms)`;
+    const line = `response ${req.method} ${req.originalUrl} ${res.statusCode} (${ms}ms)`;
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      console.log(line);
+      logger.info(line);
     } else {
-      console.warn(`${line} — ${errorDetail(payload, res)}`);
+      logger.warn(`${line} — ${errorDetail(payload, res)}`);
     }
   });
 

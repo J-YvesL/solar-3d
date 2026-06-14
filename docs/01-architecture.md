@@ -48,7 +48,7 @@ packages:
 | Package | Name | Depends on |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | — (types only, no runtime deps) |
-| `apps/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `express`, `cors` |
+| `apps/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `express`, `cors`, `winston` |
 | `apps/frontend` | `@solar/frontend` | `@solar/shared` (workspace:\*), `react`, `react-dom`, `three` |
 
 `@solar/shared` is consumed **as TypeScript source** (its `main`/`exports` points to `src/index.ts`). No build step for it; both apps' bundler/runtime compile it. This avoids build-order problems for a POC.
