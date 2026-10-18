@@ -32,7 +32,8 @@ pnpm exec wrangler login   # once
 pnpm run deploy          # builds the frontend, then wrangler deploy
 ```
 
-One Worker serves the built frontend as static assets and the API on `/api/*`.
+One Worker serves the built frontend as static assets and the API on `/api/*`, at
+https://solar.jynfra.com (the only public URL — `workers.dev` is disabled).
 The descriptor is [wrangler.jsonc](wrangler.jsonc) at the repo root; the
 `TLE_CACHE` KV namespace is provisioned automatically on the first deploy.
 

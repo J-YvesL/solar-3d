@@ -107,6 +107,7 @@ export default defineConfig({
 
 A **single Worker** serves everything, described by the root `wrangler.jsonc` — it deploys the whole app, so it lives at the repo root (also where Workers Builds looks for it):
 
+- `routes: [{ pattern: "solar.jynfra.com", custom_domain: true }]` — the app's only public URL (the `jynfra.com` zone is on Cloudflare, which creates the DNS record and certificate); `workers_dev: false` and `preview_urls: false` so no `*.workers.dev` URL exposes it too.
 - `main: "packages/backend/src/worker.ts"` — the Hono app; `assets.directory: "packages/frontend/dist"` — the Vite build.
 - `assets.not_found_handling: "single-page-application"` so path routes (`/earth`, doc 06) return `index.html`; `assets.run_worker_first: ["/api/*"]` so the API always reaches the Worker.
 - `vars`: `ISS_TLE_OFFLINE: "0"` (production is the only place that fetches the TLE), `LOG_LEVEL: "info"`.

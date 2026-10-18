@@ -6,6 +6,12 @@
   "main": "packages/backend/src/worker.ts",
   "compatibility_date": "2026-10-01",
 
+  // Served only on the custom domain (DNS record + certificate managed by
+  // Cloudflare); the workers.dev and per-version preview URLs are disabled.
+  "routes": [{ "pattern": "solar.jynfra.com", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+
   // Frontend build output (`pnpm --filter @solar/frontend build`). Path-based
   // routes (/earth, /saturn…) fall back to index.html; /api/* always hits the Worker.
   "assets": {
