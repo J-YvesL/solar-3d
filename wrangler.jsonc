@@ -28,9 +28,9 @@
   },
 
   // Persistent ISS TLE cache shared by every isolate and location (doc 02 step E).
-  // No id: wrangler provisions the namespace on first deploy; `wrangler dev`
+  // Namespace provisioned by wrangler on the first deploy; `wrangler dev`
   // simulates it locally under .wrangler/.
-  "kv_namespaces": [{ "binding": "TLE_CACHE" }],
+  "kv_namespaces": [{ "binding": "TLE_CACHE", "id": "8f41875a59cf4a85be59ed260d81887b" }],
 
   "observability": { "enabled": true }
 }

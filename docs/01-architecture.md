@@ -111,7 +111,7 @@ A **single Worker** serves everything, described by the root `wrangler.jsonc` �
 - `main: "packages/backend/src/worker.ts"` — the Hono app; `assets.directory: "packages/frontend/dist"` — the Vite build.
 - `assets.not_found_handling: "single-page-application"` so path routes (`/earth`, doc 06) return `index.html`; `assets.run_worker_first: ["/api/*"]` so the API always reaches the Worker.
 - `vars`: `ISS_TLE_OFFLINE: "0"` (production is the only place that fetches the TLE), `LOG_LEVEL: "info"`.
-- `kv_namespaces`: `TLE_CACHE` — the persistent ISS TLE cache (doc 02 step E), provisioned by wrangler on first deploy.
+- `kv_namespaces`: `TLE_CACHE` — the persistent ISS TLE cache (doc 02 step E); namespace provisioned by wrangler on the first deploy, its `id` committed in `wrangler.jsonc`.
 - `observability.enabled: true` — logs land in Workers Logs.
 
 `pnpm run deploy` builds the frontend then runs `wrangler deploy`. Local development does **not** need workerd: `pnpm dev` runs the same Hono app on Node (`packages/backend/src/dev.ts`, `@hono/node-server`), with a file-backed `TLE_CACHE` in `.cache/`. `pnpm dev:worker` runs `wrangler dev` (API only, :3001) instead, on hosts where workerd works (it does not on 39-bit-VA kernels such as Raspberry Pi OS).
