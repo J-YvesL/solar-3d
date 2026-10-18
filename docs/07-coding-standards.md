@@ -20,7 +20,7 @@
 }
 ```
 
-(Backend overrides `module: "CommonJS", moduleResolution: "Node"` if tsx requires it — keep whatever makes `pnpm dev` work, but `strict` is non-negotiable.)
+(The backend uses the base settings unchanged — wrangler/esbuild bundle the Worker, tsx runs `src/dev.ts`. `strict` is non-negotiable.) Only `src/dev.ts` may import `node:*` modules: everything else must run on Cloudflare Workers.
 
 - **No `any`**, no `as unknown as`, no `@ts-ignore`/`@ts-expect-error`. If you need one, the design is wrong — re-read the relevant doc.
 - No `null` assertions (`!`) except the documented `ref.current!` in `CanvasHost` right after mount.
@@ -58,7 +58,7 @@ Root `.prettierrc`: `{ "printWidth": 100, "singleQuote": false, "trailingComma":
 
 ## Logging (backend)
 
-Use `createLogger(component)` from `packages/backend/src/logger.ts` (Winston 3). One logger per module, created at module scope.
+Use `createLogger(component)` from `packages/backend/src/logger.ts` (a minimal leveled logger over `console`, which Workers Logs captures — Winston does not run on Workers). One logger per module, created at module scope.
 
 ```ts
 const logger = createLogger("my-component");
@@ -69,7 +69,7 @@ logger.debug("verbose detail");   // hidden at default level
 
 Output format: `YYYY-MM-DD HH:mm:ss [component] level: message`.
 
-Default level is `info`; set `LOG_LEVEL=debug` in the environment to see `debug` lines. Keep `debug` for per-request cache hits or other high-frequency events. Keep `warn` for degraded-but-safe paths (fallbacks, retries). Use `error` only when the request will fail.
+Default level is `info`; set the `LOG_LEVEL` binding to `debug` (`wrangler.jsonc` `vars`, or the `LOG_LEVEL` env var with `pnpm dev`) to see `debug` lines. Keep `debug` for per-request cache hits or other high-frequency events. Keep `warn` for degraded-but-safe paths (fallbacks, retries). Use `error` only when the request will fail.
 
 ## Git
 
@@ -82,4 +82,4 @@ Default level is `info`; set `LOG_LEVEL=debug` in the environment to see `debug`
 2. `pnpm typecheck` — clean.
 3. `pnpm test` — all green, including previous stories' tests.
 4. The story's own acceptance criteria (BACKLOG) verified — manual ones included.
-5. No TODO/FIXME left in code; no dead code; no `console.log` or `console.warn` in backend code — use the Winston logger (see Logging section below). A single `console.warn` for missing textures in the frontend is still allowed (doc 06).
+5. No TODO/FIXME left in code; no dead code; no `console.*` in backend code outside `logger.ts` — use the logger (see Logging section below). A single `console.warn` for missing textures in the frontend is still allowed (doc 06).

@@ -1,5 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { SNAPSHOT_LINE1, SNAPSHOT_LINE2 } from "../data/issTle";
 import { createLogger } from "../logger";
 
@@ -36,22 +34,33 @@ const WHERETHEISS_URL = "https://api.wheretheiss.at/v1/satellites/25544/tles";
 const TTL_MS = 24 * 60 * 60 * 1000;       // 24 h
 const RETRY_COOLDOWN_MS = 30 * 60 * 1000; // 30 min after a failure
 
-// Disk-persisted cache so the "at most one fetch per 24 h" guarantee survives
-// dev-server restarts (the in-memory cache alone re-fetches on every restart).
-// Disabled under vitest to keep unit tests hermetic.
-const DISK_CACHE_PATH = join(__dirname, "../../.cache/iss-tle.json");
-const DISK_CACHE_ENABLED = process.env["VITEST"] === undefined;
-
-// Offline mode: never hit the network — serve the disk cache (even stale) or the
-// committed snapshot. Set by the `dev` script so local development never queries
-// CelesTrak / wheretheiss.at (avoids getting the dev host IP blocked, doc 02 step E).
-// Read at call time so it can be toggled per environment (and in tests).
-function isOffline(): boolean {
-  const v = process.env["ISS_TLE_OFFLINE"];
-  return v === "1" || v === "true";
+// Persistent TLE store (a Workers KV namespace in production) so the "at most one
+// fetch per 24 h" guarantee survives isolate restarts and is shared by every
+// Cloudflare location — the in-memory cache alone re-fetches on every cold start.
+// Structural type: a KVNamespace satisfies it, tests can pass a Map-backed fake.
+export interface TleStore {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
 }
 
-interface DiskCache {
+/** Where `getIssTle()` may look for a TLE (doc 02 step E). */
+export interface TleSource {
+  /**
+   * Offline mode: never hit the network — serve the persisted cache (even stale)
+   * or the committed snapshot. Defaults to true so tests and local development
+   * never query CelesTrak / wheretheiss.at (avoids getting the host IP blocked);
+   * production opts in to the network explicitly (`ISS_TLE_OFFLINE=0`).
+   */
+  offline?: boolean;
+  /** Persistent cache; absent → in-memory cache only. */
+  store?: TleStore;
+  /** Injectable fetch for the fallback-chain tests. */
+  fetchFn?: typeof globalThis.fetch;
+}
+
+const STORE_KEY = "iss-tle";
+
+interface StoredTle {
   line1: string;
   line2: string;
   fetchedAt: number;
@@ -59,35 +68,38 @@ interface DiskCache {
 
 let tleCache: { tle: ParsedTle; fetchedAt: number } | null = null;
 let lastFailTime = 0;
-let diskLoaded = false;
+let storeLoaded = false;
 
 export function resetTleCache(): void {
   tleCache = null;
   lastFailTime = 0;
-  diskLoaded = true; // skip disk reads in tests
+  storeLoaded = false;
 }
 
-function loadDiskCache(): void {
-  diskLoaded = true;
-  if (!DISK_CACHE_ENABLED || !existsSync(DISK_CACHE_PATH)) return;
+async function loadStore(store: TleStore): Promise<void> {
+  storeLoaded = true;
   try {
-    const data = JSON.parse(readFileSync(DISK_CACHE_PATH, "utf8")) as DiskCache;
+    const raw = await store.get(STORE_KEY);
+    if (raw === null) return;
+    const data = JSON.parse(raw) as StoredTle;
     tleCache = { tle: parseTle(data.line1, data.line2), fetchedAt: data.fetchedAt };
-  } catch {
+  } catch (err) {
     // Corrupt or unreadable cache — ignore and fetch fresh.
+    logger.warn(`TLE store read failed: ${String(err)}`);
   }
 }
 
-function saveDiskCache(line1: string, line2: string, fetchedAt: number): void {
-  if (!DISK_CACHE_ENABLED) return;
+async function saveStore(
+  store: TleStore,
+  line1: string,
+  line2: string,
+  fetchedAt: number,
+): Promise<void> {
   try {
-    mkdirSync(dirname(DISK_CACHE_PATH), { recursive: true });
-    writeFileSync(
-      DISK_CACHE_PATH,
-      JSON.stringify({ line1, line2, fetchedAt } satisfies DiskCache),
-    );
-  } catch {
-    // Read-only filesystem or similar — disk persistence is best-effort.
+    await store.put(STORE_KEY, JSON.stringify({ line1, line2, fetchedAt } satisfies StoredTle));
+  } catch (err) {
+    // Persistence is best-effort — the in-memory cache still holds the TLE.
+    logger.warn(`TLE store write failed: ${String(err)}`);
   }
 }
 
@@ -149,13 +161,13 @@ export function raanRateDegPerDay(tle: ParsedTle, semiMajorAxisKm: number): numb
  * Return the current ISS TLE, fetching from CelesTrak when needed.
  * Cached 24 h; falls back to the committed snapshot on any failure.
  * A fetch failure never throws — the API must never 500 because of this.
- *
- * The optional `fetchFn` parameter allows tests to inject a failing fetch.
  */
-export async function getIssTle(
-  fetchFn: typeof globalThis.fetch = globalThis.fetch,
-): Promise<ParsedTle> {
-  if (!diskLoaded) loadDiskCache();
+export async function getIssTle({
+  offline = true,
+  store,
+  fetchFn = globalThis.fetch,
+}: TleSource = {}): Promise<ParsedTle> {
+  if (!storeLoaded && store !== undefined) await loadStore(store);
   const now = Date.now();
 
   if (tleCache !== null && now - tleCache.fetchedAt < TTL_MS) {
@@ -164,11 +176,11 @@ export async function getIssTle(
     return tleCache.tle;
   }
 
-  // Local/offline: skip the network entirely; the disk cache (even stale) or the
+  // Local/offline: skip the network entirely; the stored cache (even stale) or the
   // committed snapshot is good enough, and the J2 propagation keeps the position
   // accurate for weeks (doc 02 step E).
-  if (isOffline()) {
-    const src = tleCache !== null ? "disk cache" : "committed snapshot";
+  if (offline) {
+    const src = tleCache !== null ? "stored cache" : "committed snapshot";
     logger.info(`OFFLINE mode → serving ${src} (no network)`);
     return tleCache?.tle ?? getSnapshotTle();
   }
@@ -190,8 +202,8 @@ export async function getIssTle(
   if (lines !== null) {
     const tle = parseTle(lines[0], lines[1]);
     tleCache = { tle, fetchedAt: now };
-    saveDiskCache(lines[0], lines[1], now);
-    logger.info(`fetched fresh TLE from ${source} (epoch ${tle.epochDate.toISOString()}) → cached on disk`);
+    if (store !== undefined) await saveStore(store, lines[0], lines[1], now);
+    logger.info(`fetched fresh TLE from ${source} (epoch ${tle.epochDate.toISOString()})`);
     return tle;
   }
 

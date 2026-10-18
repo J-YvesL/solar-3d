@@ -1,13 +1,16 @@
 # 02 — Backend Specification
 
-The backend is a tiny Express app with **one** business endpoint. Its only job: return all 32 bodies with their static data and their **angular state** (position on orbit + spin orientation) at a given instant, computed from Keplerian elements.
+The backend is a tiny Hono app, deployed as a Cloudflare Worker (doc 01), with **one** business endpoint. Its only job: return all 32 bodies with their static data and their **angular state** (position on orbit + spin orientation) at a given instant, computed from Keplerian elements.
 
 ## File layout
 
 ```
 packages/backend/src/
-├── server.ts            # createApp() + app.listen(3001) — nothing else
-├── app.ts               # createApp(): express(), cors(), json, mounts routes
+├── worker.ts            # Worker entry: export default createApp() — nothing else
+├── dev.ts               # local Node entry: @hono/node-server on :3001, file-backed TLE_CACHE
+├── app.ts               # createApp(): new Hono(), request logger, mounts routes
+├── env.ts               # Bindings (ISS_TLE_OFFLINE, LOG_LEVEL, TLE_CACHE), isTleOffline()
+├── logger.ts            # createLogger(component) (doc 07)
 ├── routes/
 │   └── bodies.ts        # GET /api/bodies handler
 ├── ephemeris/
@@ -27,7 +30,7 @@ packages/backend/src/
         └── de.ts
 ```
 
-`app.ts` / `server.ts` are split so tests can import `createApp()` without opening a port (use `supertest`).
+`app.ts` / `worker.ts` / `dev.ts` are split so tests can import `createApp()` and call `app.request(path, init, bindings)` — no port, no extra test library.
 
 Also expose `GET /api/health` → `{ "status": "ok" }` (used by S1 acceptance).
 
@@ -162,9 +165,9 @@ The ISS's orbit changes daily (atmospheric drag + monthly reboosts), so its elem
 
 Both via native Node `fetch`.
 
-**Offline mode (`ISS_TLE_OFFLINE=1`):** when set, `getIssTle()` never touches the network — it serves the disk cache (even if stale) or the committed snapshot. The `dev` script sets it so local development never queries these services (repeated dev-server restarts otherwise get the host IP blocked). Production (`build` + run) leaves it unset and fetches normally; `dev:online` is the opt-in for a deliberate local refresh. The J2 propagation keeps the snapshot-based position accurate for weeks, so offline dev still renders the ISS correctly.
+**Offline mode (default):** `getIssTle({ offline, store, fetchFn })` never touches the network unless `offline: false` is passed — it serves the stored cache (even if stale) or the committed snapshot. The route derives `offline` from the `ISS_TLE_OFFLINE` binding: only `"0"`/`"false"` mean online, and only production sets it (`wrangler.jsonc` `vars`). Local development and tests are therefore offline by construction (repeated dev-server restarts otherwise get the host IP blocked); `dev:online` (`ISS_TLE_OFFLINE=0`) is the opt-in for a deliberate local refresh. The J2 propagation keeps the snapshot-based position accurate for weeks, so offline dev still renders the ISS correctly.
 
-**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable) **backed by a disk cache** at `packages/backend/.cache/iss-tle.json` (gitignored) so the once-per-24 h budget survives dev-server restarts — the in-memory cache alone re-fetches on every restart, which is what gets the host IP throttled. The disk cache is loaded lazily on first call and written (with its `fetchedAt`) after every successful fetch; disabled under vitest to keep unit tests hermetic, and all disk I/O is best-effort (a read-only or corrupt cache never throws). TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure of **both** sources (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
+**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable, lives as long as the Worker isolate) **backed by a persistent `TleStore`** (`get`/`put` of a string under the key `iss-tle`, value `{ line1, line2, fetchedAt }` as JSON): the `TLE_CACHE` Workers KV namespace in production, a gitignored `packages/backend/.cache/iss-tle.json` file in local dev (`dev.ts`). Without it every cold isolate — and every Cloudflare location — would re-fetch, which is what gets the host IP throttled. The store is read lazily on the first call of an isolate and written after every successful fetch; tests pass no store (or an in-memory fake), and all store I/O is best-effort (a failing or corrupt store never throws). TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure of **both** sources (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
 
 **Parsing (`parseTle(line1, line2)`)** — 1-indexed fixed columns:
 
@@ -252,7 +255,7 @@ These expected values were produced by a reference implementation of the exact a
 14b. Every body has `rotationAtJ2000Deg` in `[0, 360)` (added by S13).
 14c. Every body has `poleEclipticLonDeg` in `[0, 360)`; spot checks vs doc 03 Table 6: earth exactly 90, venus 210.19, uranus 77.65, pluto 317.35, every moon 0 (S28: pluto, a dwarf planet, has a real non-zero pole).
 
-`routes/bodies.test.ts` (supertest against `createApp()`)
+`routes/bodies.test.ts` (`createApp().request(...)`, no bindings → offline)
 15. `GET /api/bodies` → 200, `bodies.length === 32`, `epochIso` parses to a valid date, every planet/dwarf-planet/moon has `orbitalAngleDeg` in `[0, 360)`.
 16. `GET /api/bodies?date=2000-01-01T12:00:00Z` → Earth's `orbitalAngleDeg` ≈ 100.380.
 17. `GET /api/bodies?date=banana` → 400.
@@ -264,7 +267,7 @@ These expected values were produced by a reference implementation of the exact a
 `ephemeris/tle.test.ts` (S23 — all offline, no network in tests)
 22. `parseTle` on the reference TLE of step E → epoch `2024-01-01T12:00:00.000Z`, inclination 51.6416, RAAN 247.4627, e 0.0006703, ω 130.5360, M 325.0288, n 15.49512571 (exact field values).
 23. `deriveCircularElements` on the same TLE → `orbitalPeriodDays` = **0.06454 ± 0.0001**, `semiMajorAxisKm` = **6 796 ± 5**, `u₀` = **95.565 ± 0.01**.
-24. `GET /api/bodies` (supertest) → contains the `iss`: `type === "satellite"`, `parentId === "earth"`, `orbitalAngleDeg` ∈ [0, 360), `inclinationDeg` ∈ [51, 52.5], `nodeLonDeg` ∈ [0, 360), `semiMajorAxisKm` ∈ [6 600, 6 900], `rotationAngleDeg === orbitalAngleDeg`; every **non-satellite** body has `nodeLonDeg === null`. (S23)
+24. `GET /api/bodies` → contains the `iss`: `type === "satellite"`, `parentId === "earth"`, `orbitalAngleDeg` ∈ [0, 360), `inclinationDeg` ∈ [51, 52.5], `nodeLonDeg` ∈ [0, 360), `semiMajorAxisKm` ∈ [6 600, 6 900], `rotationAngleDeg === orbitalAngleDeg`; every **non-satellite** body has `nodeLonDeg === null`. (S23)
 25. Offline fallback: with the CelesTrak fetch failing (injected/mocked — the fetch function must be injectable for this), `getIssTle()` returns the committed snapshot and `/api/bodies` still answers 200 with a valid iss entry. (S23)
 
 ## package.json scripts (backend)
@@ -272,8 +275,8 @@ These expected values were produced by a reference implementation of the exact a
 ```jsonc
 {
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/dev.ts",
+    "dev:online": "ISS_TLE_OFFLINE=0 tsx watch src/dev.ts",
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"

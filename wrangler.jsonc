@@ -1,0 +1,30 @@
+// Cloudflare Workers deployment descriptor (doc 01 — Deployment).
+// One Worker serves both the built frontend (static assets) and the Hono API.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "solar-3d",
+  "main": "packages/backend/src/worker.ts",
+  "compatibility_date": "2026-10-01",
+
+  // Frontend build output (`pnpm --filter @solar/frontend build`). Path-based
+  // routes (/earth, /saturn…) fall back to index.html; /api/* always hits the Worker.
+  "assets": {
+    "directory": "packages/frontend/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Production fetches the ISS TLE (at most once per 24 h). `pnpm dev:worker` overrides
+  // this with --var ISS_TLE_OFFLINE:1 so local development never hits the network.
+  "vars": {
+    "ISS_TLE_OFFLINE": "0",
+    "LOG_LEVEL": "info"
+  },
+
+  // Persistent ISS TLE cache shared by every isolate and location (doc 02 step E).
+  // No id: wrangler provisions the namespace on first deploy; `wrangler dev`
+  // simulates it locally under .wrangler/.
+  "kv_namespaces": [{ "binding": "TLE_CACHE" }],
+
+  "observability": { "enabled": true }
+}

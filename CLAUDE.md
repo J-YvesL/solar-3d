@@ -1,6 +1,6 @@
 # CLAUDE.md — solar-3d
 
-Interactive 3D solar system POC: Three.js frontend (React shell), Express API computing real body positions from Keplerian elements, pnpm monorepo.
+Interactive 3D solar system POC: Three.js frontend (React shell), Hono API (Cloudflare Worker) computing real body positions from Keplerian elements, pnpm monorepo.
 
 **This project is implemented from a complete written specification.** The `docs/` folder is the source of truth — not your general knowledge. When you are about to make a decision (a constant, a formula, a file name, a color, an API field), the answer already exists in a doc. Find it.
 
@@ -13,6 +13,7 @@ pnpm test                # vitest, all packages
 pnpm lint                # eslint, all packages
 pnpm typecheck           # tsc --noEmit, all packages
 pnpm download-textures   # one-shot asset download
+pnpm run deploy          # build frontend + wrangler deploy (Cloudflare Workers)
 ```
 
 ## Package map
@@ -20,7 +21,7 @@ pnpm download-textures   # one-shot asset download
 | Path | Package | Contents |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | API DTO **types only** (doc 02) — never add runtime code |
-| `packages/backend` | `@solar/backend` | Express, `/api/bodies`, Kepler math, data tables (docs 02–03) |
+| `packages/backend` | `@solar/backend` | Hono Worker (root `wrangler.jsonc`), `/api/bodies`, Kepler math, data tables (docs 02–03) |
 | `packages/frontend` | `@solar/frontend` | Vite + React + Three.js, layers `domain / three / api / react` (doc 04) |
 
 ## Which doc answers which question
@@ -46,9 +47,9 @@ The **active backlog** is `docs/BACKLOG.md` (v2.3 stories, s30 onward) — imple
 2. **Never invent values.** Every astronomical number comes from doc 03, every formula from docs 02/05, every UI text from docs 03/06/09 (translations follow the doc 09 policy). If a value seems missing, re-read the doc; if it is genuinely missing, stop and ask — do not guess.
 3. **Frontend layering is law** (doc 04): `domain/` imports neither `three` nor `react`; `three/` never imports React; only `react/` may import React. ESLint enforces it — never weaken those rules.
 4. **No Three.js object in React state/props/context, ever.** React ↔ Three communication only via the `SceneManager` public API (doc 04).
-5. **Assets** (textures, models): only from the sources in doc 08, downloaded at dev time, **committed** to the repo. The **frontend** makes zero non-localhost requests. The backend's single allowed external request is the ISS TLE (CelesTrak, with `api.wheretheiss.at` as the only fallback source when CelesTrak is blocked — doc 02 step E): at most once per 24 h (disk-cached so restarts don't re-fetch), committed fallback, a fetch failure never breaks the API. **Tests and the dev server run offline** via `ISS_TLE_OFFLINE=1` (serves the committed snapshot, never hits the network): set by the `dev` script and by `packages/backend/vitest.config.ts` for the whole test suite — only the TLE fetch-chain tests opt back online (stubbed fetch). Keep tests offline; never rely on network in tests.
+5. **Assets** (textures, models): only from the sources in doc 08, downloaded at dev time, **committed** to the repo. The **frontend** makes zero non-localhost requests. The backend's single allowed external request is the ISS TLE (CelesTrak, with `api.wheretheiss.at` as the only fallback source when CelesTrak is blocked — doc 02 step E): at most once per 24 h (persisted in Workers KV — a `.cache/` file in local dev — so restarts don't re-fetch), committed fallback, a fetch failure never breaks the API. **Offline is the default**: `getIssTle()` never hits the network unless the caller opts in (`ISS_TLE_OFFLINE=0`, set only in `wrangler.jsonc` for production). Tests and the dev server therefore serve the cache or committed snapshot — only the TLE fetch-chain tests opt in (`{ offline: false }`, stubbed fetch). Keep tests offline; never rely on network in tests.
 6. TypeScript `strict` everywhere; no `any`, no `@ts-ignore` (doc 07).
-7. Do not add dependencies beyond those listed in docs 01/07 (express, cors, winston, react, react-dom, three, concurrently, tsx, vitest, supertest, eslint/prettier toolchain). No state managers, no CSS frameworks, no animation libs, no test DOM libs.
+7. Do not add dependencies beyond those listed in docs 01/07 (hono, react, react-dom, three, concurrently, wrangler, @hono/node-server, tsx, vitest, eslint/prettier toolchain). No state managers, no CSS frameworks, no animation libs, no test DOM libs.
 8. Do not implement non-goals (doc 00): no shadow maps, no date picker UI, no extra bodies (the ISS — S23/S24 — is the only spec'd exception), no language picker UI.
 
 ## Definition of done

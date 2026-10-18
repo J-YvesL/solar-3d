@@ -1,7 +1,7 @@
 # solar-3d
 
 An interactive 3D model of the solar system, rendered in the browser with Three.js.
-Body positions are **real**: a small Express API computes where each planet and moon
+Body positions are **real**: a small Hono API (a Cloudflare Worker) computes where each planet and moon
 actually is on its orbit (from Keplerian elements) for the current date, and the
 frontend animates everything forward from there.
 
@@ -25,6 +25,17 @@ pnpm dev                 # backend on :3001, frontend on :5173 (proxies /api →
 
 Open http://localhost:5173.
 
+## Deploy (Cloudflare Workers)
+
+```bash
+pnpm exec wrangler login   # once
+pnpm run deploy          # builds the frontend, then wrangler deploy
+```
+
+One Worker serves the built frontend as static assets and the API on `/api/*`.
+The descriptor is [wrangler.jsonc](wrangler.jsonc) at the repo root; the
+`TLE_CACHE` KV namespace is provisioned automatically on the first deploy.
+
 ## Scripts
 
 ```bash
@@ -38,7 +49,7 @@ pnpm typecheck   # tsc --noEmit, all packages
 | Path | Package | Contents |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | Shared API DTO types |
-| `packages/backend` | `@solar/backend` | Express API, `/api/bodies`, Kepler ephemeris |
+| `packages/backend` | `@solar/backend` | Hono API (Cloudflare Worker), `/api/bodies`, Kepler ephemeris |
 | `packages/frontend` | `@solar/frontend` | Vite + React + Three.js (layers: domain / three / api / react) |
 
 The full written specification lives in [docs/](docs/).

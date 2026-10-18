@@ -1,68 +1,55 @@
-import express, { type Request, type Response, type NextFunction } from "express";
-import cors from "cors";
-import { bodiesRouter } from "./routes/bodies";
-import { createLogger } from "./logger";
+import { Hono, type MiddlewareHandler } from "hono";
+import { bodiesRoute } from "./routes/bodies";
+import { createLogger, setLogLevel } from "./logger";
+import type { AppEnv } from "./env";
 
 const logger = createLogger("http");
 
 /** Logs incoming requests and their response status. */
-function requestLogger(req: Request, res: Response, next: NextFunction): void {
+const requestLogger: MiddlewareHandler<AppEnv> = async (c, next) => {
+  setLogLevel(c.env?.LOG_LEVEL);
   const start = Date.now();
-  logger.info(`request ${req.method} ${req.originalUrl}`);
+  const url = new URL(c.req.url);
+  const target = `${c.req.method} ${url.pathname}${url.search}`;
+  logger.info(`request ${target}`);
 
-  // Capture the response body so a non-2XX status can report why it failed.
-  let payload: unknown;
-  const originalSend = res.send.bind(res);
-  res.send = ((body?: unknown) => {
-    payload = body;
-    return originalSend(body as Parameters<typeof originalSend>[0]);
-  }) as typeof res.send;
+  await next();
 
-  res.on("finish", () => {
-    const ms = Date.now() - start;
-    const line = `response ${req.method} ${req.originalUrl} ${res.statusCode} (${ms}ms)`;
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      logger.info(line);
-    } else {
-      logger.warn(`${line} — ${errorDetail(payload, res)}`);
-    }
-  });
-
-  next();
-}
+  const ms = Date.now() - start;
+  const line = `response ${target} ${c.res.status} (${ms}ms)`;
+  if (c.res.status >= 200 && c.res.status < 300) {
+    logger.info(line);
+  } else {
+    // Read a clone so the client still receives the original body.
+    logger.warn(`${line} — ${await errorDetail(c.res.clone())}`);
+  }
+};
 
 /** Best-effort extraction of an error message from a response body. */
-function errorDetail(payload: unknown, res: Response): string {
-  let body: unknown = payload;
-  if (typeof payload === "string") {
-    try {
-      body = JSON.parse(payload);
-    } catch {
-      // Not JSON — fall back to the raw string below.
-      const trimmed = payload.trim();
-      if (trimmed !== "" && trimmed.length < 200) return trimmed;
-      body = undefined;
+async function errorDetail(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  try {
+    const body: unknown = JSON.parse(text);
+    if (body !== null && typeof body === "object") {
+      const record = body as Record<string, unknown>;
+      const message = record["error"] ?? record["message"];
+      if (typeof message === "string") return message;
     }
+  } catch {
+    // Not JSON — fall back to the raw string below.
+    const trimmed = text.trim();
+    if (trimmed !== "" && trimmed.length < 200) return trimmed;
   }
-  if (body !== null && typeof body === "object") {
-    const record = body as Record<string, unknown>;
-    const message = record["error"] ?? record["message"];
-    if (typeof message === "string") return message;
-  }
-  return res.statusMessage || "non-2XX response";
+  return res.statusText || "non-2XX response";
 }
 
 export function createApp() {
-  const app = express();
-  app.use(cors());
-  app.use(express.json());
-  app.use(requestLogger);
+  const app = new Hono<AppEnv>();
+  app.use("/api/*", requestLogger);
 
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok" });
-  });
+  app.get("/api/health", (c) => c.json({ status: "ok" }));
 
-  app.use("/api/bodies", bodiesRouter);
+  app.route("/api/bodies", bodiesRoute);
 
   return app;
 }

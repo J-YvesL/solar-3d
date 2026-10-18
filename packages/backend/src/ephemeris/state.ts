@@ -5,14 +5,17 @@ import { type PlanetId } from "../data/keplerianElements";
 import { daysSinceJ2000 } from "./julian";
 import { equatorialToEcliptic } from "./frames";
 import { mod360, planetOrbitalAngle } from "./kepler";
-import { deriveCircularElements, getIssTle, raanRateDegPerDay } from "./tle";
+import { deriveCircularElements, getIssTle, raanRateDegPerDay, type TleSource } from "./tle";
 
 // Earth's obliquity (doc 03 Table — Earth axialTiltDeg): the equatorial→ecliptic
 // rotation angle used to place the ISS orbit plane in the scene's ecliptic frame.
 const EARTH_OBLIQUITY_DEG = 23.44;
 
-/** Assemble the full BodyDto array for 32 bodies at the given date. */
-export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
+/**
+ * Assemble the full BodyDto array for 32 bodies at the given date.
+ * `tleSource` tells where the ISS TLE may come from (offline by default).
+ */
+export async function computeBodyStates(date: Date, tleSource?: TleSource): Promise<BodyDto[]> {
   const deltaDays = daysSinceJ2000(date);
 
   // 31 non-satellite bodies from the static BODIES table
@@ -61,7 +64,7 @@ export async function computeBodyStates(date: Date): Promise<BodyDto[]> {
   );
 
   // ISS: orbit from a live TLE (falls back to committed snapshot on any failure — doc 02 step E)
-  const issTle = await getIssTle();
+  const issTle = await getIssTle(tleSource);
   const { orbitalPeriodDays, semiMajorAxisKm, u0 } = deriveCircularElements(issTle);
   const deltaFromTleEpoch =
     (date.getTime() - issTle.epochDate.getTime()) / 86_400_000;

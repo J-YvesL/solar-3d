@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   parseTle,
   deriveCircularElements,
@@ -65,11 +65,8 @@ describe("raanRateDegPerDay — J2 nodal regression", () => {
 
 describe("getIssTle — fetch fallback chain", () => {
   // This suite exercises the live-fetch path (with a stubbed fetch), so it opts out
-  // of the global ISS_TLE_OFFLINE=1 set in vitest.config.ts. The dedicated
-  // "offline mode" test re-enables it locally.
-  beforeEach(() => {
-    delete process.env["ISS_TLE_OFFLINE"];
-  });
+  // of the default offline mode with `{ offline: false }`.
+  const online = { offline: false } as const;
 
   it("falls back to wheretheiss.at when CelesTrak fails", async () => {
     vi.stubGlobal("fetch", async (url: string) => {
@@ -81,13 +78,13 @@ describe("getIssTle — fetch fallback chain", () => {
         json: async () => ({ line1: FALLBACK_LINE1, line2: FALLBACK_LINE2 }),
       } as Response;
     });
-    const tle = await getIssTle();
+    const tle = await getIssTle(online);
     expect(tle.inclination).toBeCloseTo(52.0, 3); // proves the fallback TLE was used
   });
 
   it("returns the committed snapshot when both sources fail", async () => {
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
-    const tle = await getIssTle();
+    const tle = await getIssTle(online);
     expect(tle.inclination).toBeCloseTo(51.6, 1);
     expect(tle.meanMotion).toBeGreaterThan(15);
   });
@@ -99,20 +96,16 @@ describe("getIssTle — fetch fallback chain", () => {
       }
       return { ok: true, json: async () => ({ foo: "bar" }) } as Response; // missing line1/line2
     });
-    const tle = await getIssTle();
+    const tle = await getIssTle(online);
     expect(tle.inclination).toBeCloseTo(51.6, 1);
   });
 
-  it("offline mode never calls fetch — serves the committed snapshot", async () => {
-    process.env["ISS_TLE_OFFLINE"] = "1";
-    try {
-      const fetchSpy = vi.fn(() => Promise.reject(new Error("should not fetch")));
-      const tle = await getIssTle(fetchSpy as unknown as typeof globalThis.fetch);
-      expect(fetchSpy).not.toHaveBeenCalled();
-      expect(tle.inclination).toBeCloseTo(51.6, 1);
-    } finally {
-      delete process.env["ISS_TLE_OFFLINE"];
-    }
+  it("offline (the default) never calls fetch — serves the committed snapshot", async () => {
+    const fetchSpy = vi.fn(() => Promise.reject(new Error("should not fetch")));
+    vi.stubGlobal("fetch", fetchSpy);
+    const tle = await getIssTle();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(tle.inclination).toBeCloseTo(51.6, 1);
   });
 
   it("serves cached tle on repeated calls within TTL", async () => {
@@ -124,8 +117,33 @@ describe("getIssTle — fetch fallback chain", () => {
         text: async () => `ISS\n${REF_LINE1}\n${REF_LINE2}`,
       } as Response;
     });
-    await getIssTle();
-    await getIssTle();
+    await getIssTle(online);
+    await getIssTle(online);
     expect(callCount).toBe(1);
+  });
+
+  it("persists a fresh TLE in the store; a cold isolate reuses it without fetching", async () => {
+    const kv = new Map<string, string>();
+    const store = {
+      get: async (key: string) => kv.get(key) ?? null,
+      put: async (key: string, value: string) => void kv.set(key, value),
+    };
+    let callCount = 0;
+    vi.stubGlobal("fetch", async () => {
+      callCount++;
+      return { ok: true, text: async () => `${REF_LINE1}\n${REF_LINE2}` } as Response;
+    });
+    await getIssTle({ ...online, store });
+    expect(kv.has("iss-tle")).toBe(true);
+    resetTleCache(); // simulate a new isolate: in-memory cache gone, store kept
+    const tle = await getIssTle({ ...online, store });
+    expect(callCount).toBe(1);
+    expect(tle.inclination).toBeCloseTo(51.6416, 4);
+  });
+
+  it("a corrupt store entry is ignored, never throws", async () => {
+    const store = { get: async () => "{not json", put: async () => undefined };
+    const tle = await getIssTle({ store });
+    expect(tle.inclination).toBeCloseTo(51.6, 1);
   });
 });

@@ -1,12 +1,13 @@
-import { Router } from "express";
+import { Hono } from "hono";
 import type { BodiesResponse } from "@solar/shared";
 import { computeBodyStates } from "../ephemeris/state";
 import { localizedBodies as fr } from "../data/localized/fr";
 import { localizedBodies as es } from "../data/localized/es";
 import { localizedBodies as it } from "../data/localized/it";
 import { localizedBodies as de } from "../data/localized/de";
+import { isTleOffline, type AppEnv } from "../env";
 
-export const bodiesRouter = Router();
+export const bodiesRoute = new Hono<AppEnv>();
 
 const VALID_LANGS = new Set(["en", "fr", "es", "it", "de"]);
 
@@ -17,9 +18,8 @@ const LOCALIZED: Record<string, Record<string, { name: string; info: { descripti
   de,
 };
 
-bodiesRouter.get("/", async (req, res) => {
-  const rawDate = req.query["date"];
-  const dateStr = typeof rawDate === "string" ? rawDate : undefined;
+bodiesRoute.get("/", async (c) => {
+  const dateStr = c.req.query("date");
 
   let date: Date;
   if (dateStr === undefined || dateStr === "") {
@@ -27,22 +27,22 @@ bodiesRouter.get("/", async (req, res) => {
   } else {
     date = new Date(dateStr);
     if (Number.isNaN(date.getTime())) {
-      res.status(400).json({ error: "Invalid date" });
-      return;
+      return c.json({ error: "Invalid date" }, 400);
     }
   }
 
-  const rawLang = req.query["lang"];
-  const langStr = typeof rawLang === "string" ? rawLang : undefined;
+  const langStr = c.req.query("lang");
 
   if (langStr !== undefined && langStr !== "" && !VALID_LANGS.has(langStr)) {
-    res.status(400).json({ error: "Invalid lang" });
-    return;
+    return c.json({ error: "Invalid lang" }, 400);
   }
 
   const lang = langStr && VALID_LANGS.has(langStr) ? langStr : "en";
 
-  let bodies = await computeBodyStates(date);
+  let bodies = await computeBodyStates(date, {
+    offline: isTleOffline(c.env),
+    store: c.env?.TLE_CACHE,
+  });
 
   if (lang !== "en") {
     const localized = LOCALIZED[lang] ?? {};
@@ -56,5 +56,5 @@ bodiesRouter.get("/", async (req, res) => {
     epochIso: date.toISOString(),
     bodies,
   };
-  res.json(response);
+  return c.json(response);
 });

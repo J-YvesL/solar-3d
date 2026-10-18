@@ -11,6 +11,7 @@ solar-3d/
 ├── package.json              # root: scripts + devDeps shared tooling
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json        # shared compiler options, packages extend it
+├── wrangler.jsonc            # Cloudflare Workers deployment descriptor (see Deployment below)
 ├── .gitignore                # node_modules, dist, .env — do NOT ignore packages/frontend/public/textures
 ├── scripts/
 │   └── download-textures.mjs # one-shot dev script (see doc 08)
@@ -21,7 +22,7 @@ solar-3d/
     │   └── src/
     │       ├── index.ts
     │       └── bodies.ts     # BodyDto, BodiesResponse, BodyType…
-    ├── backend/              # @solar/backend — Express API
+    ├── backend/              # @solar/backend — Hono API, deployed as a Cloudflare Worker
     │   ├── package.json
     │   ├── tsconfig.json
     │   └── src/              # layout detailed in doc 02
@@ -46,7 +47,7 @@ packages:
 | Package | Name | Depends on |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | — (types only, no runtime deps) |
-| `packages/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `express`, `cors`, `winston` |
+| `packages/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `hono`; dev: `@hono/node-server`, `tsx` |
 | `packages/frontend` | `@solar/frontend` | `@solar/shared` (workspace:\*), `react`, `react-dom`, `three` |
 
 `@solar/shared` is consumed **as TypeScript source** (its `main`/`exports` points to `src/index.ts`). No build step for it; both apps' bundler/runtime compile it. This avoids build-order problems for a POC.
@@ -58,6 +59,8 @@ packages:
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"pnpm --filter @solar/backend dev\" \"pnpm --filter @solar/frontend dev\"",
     "build": "pnpm -r build",
+    "deploy": "pnpm --filter @solar/frontend build && wrangler deploy",
+    "dev:worker": "wrangler dev --port 3001 --var ISS_TLE_OFFLINE:1",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
@@ -66,7 +69,7 @@ packages:
 }
 ```
 
-`concurrently` is a root devDependency.
+`concurrently` and `wrangler` are root devDependencies.
 
 ## Tooling versions
 
@@ -78,9 +81,10 @@ packages:
 | Vite | ^5.x | frontend dev server + build |
 | React | ^18.x | |
 | three | ^0.160.0 or newer | import addons from `three/examples/jsm/...` |
-| Express | ^4.x | |
+| Hono | ^4.x | backend web framework — runs unchanged on Workers and Node |
+| Wrangler | ^4.x | Cloudflare CLI: `wrangler deploy`, `wrangler dev` |
 | Vitest | ^1.x or ^2.x | test runner for **both** apps and shared |
-| tsx | latest | backend dev runner (`tsx watch src/server.ts`) |
+| tsx + @hono/node-server | ^4.x / ^1.x | local backend dev runner (`tsx watch src/dev.ts`) |
 | ESLint + Prettier | latest | config in doc 07 |
 
 ## Ports & proxy
@@ -97,7 +101,19 @@ export default defineConfig({
 });
 ```
 
-- Backend still enables `cors()` (harmless, useful if someone hits it directly).
+- No CORS: in dev the Vite proxy, in production the single Worker, keep the frontend and the API on the same origin.
+
+## Deployment (Cloudflare Workers)
+
+A **single Worker** serves everything, described by the root `wrangler.jsonc` — it deploys the whole app, so it lives at the repo root (also where Workers Builds looks for it):
+
+- `main: "packages/backend/src/worker.ts"` — the Hono app; `assets.directory: "packages/frontend/dist"` — the Vite build.
+- `assets.not_found_handling: "single-page-application"` so path routes (`/earth`, doc 06) return `index.html`; `assets.run_worker_first: ["/api/*"]` so the API always reaches the Worker.
+- `vars`: `ISS_TLE_OFFLINE: "0"` (production is the only place that fetches the TLE), `LOG_LEVEL: "info"`.
+- `kv_namespaces`: `TLE_CACHE` — the persistent ISS TLE cache (doc 02 step E), provisioned by wrangler on first deploy.
+- `observability.enabled: true` — logs land in Workers Logs.
+
+`pnpm run deploy` builds the frontend then runs `wrangler deploy`. Local development does **not** need workerd: `pnpm dev` runs the same Hono app on Node (`packages/backend/src/dev.ts`, `@hono/node-server`), with a file-backed `TLE_CACHE` in `.cache/`. `pnpm dev:worker` runs `wrangler dev` (API only, :3001) instead, on hosts where workerd works (it does not on 39-bit-VA kernels such as Raspberry Pi OS).
 
 ## Runtime data flow
 
