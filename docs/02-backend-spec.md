@@ -5,7 +5,7 @@ The backend is a tiny Express app with **one** business endpoint. Its only job: 
 ## File layout
 
 ```
-apps/backend/src/
+packages/backend/src/
 ├── server.ts            # createApp() + app.listen(3001) — nothing else
 ├── app.ts               # createApp(): express(), cors(), json, mounts routes
 ├── routes/
@@ -164,7 +164,7 @@ Both via native Node `fetch`.
 
 **Offline mode (`ISS_TLE_OFFLINE=1`):** when set, `getIssTle()` never touches the network — it serves the disk cache (even if stale) or the committed snapshot. The `dev` script sets it so local development never queries these services (repeated dev-server restarts otherwise get the host IP blocked). Production (`build` + run) leaves it unset and fetches normally; `dev:online` is the opt-in for a deliberate local refresh. The J2 propagation keeps the snapshot-based position accurate for weeks, so offline dev still renders the ISS correctly.
 
-**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable) **backed by a disk cache** at `apps/backend/.cache/iss-tle.json` (gitignored) so the once-per-24 h budget survives dev-server restarts — the in-memory cache alone re-fetches on every restart, which is what gets the host IP throttled. The disk cache is loaded lazily on first call and written (with its `fetchedAt`) after every successful fetch; disabled under vitest to keep unit tests hermetic, and all disk I/O is best-effort (a read-only or corrupt cache never throws). TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure of **both** sources (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
+**Caching (`getIssTle()`):** lazy in-memory cache (module-level variable) **backed by a disk cache** at `packages/backend/.cache/iss-tle.json` (gitignored) so the once-per-24 h budget survives dev-server restarts — the in-memory cache alone re-fetches on every restart, which is what gets the host IP throttled. The disk cache is loaded lazily on first call and written (with its `fetchedAt`) after every successful fetch; disabled under vitest to keep unit tests hermetic, and all disk I/O is best-effort (a read-only or corrupt cache never throws). TTL **24 h** (the TLE is published 2–3×/day; fetching more often is pointless). On any failure of **both** sources (network, non-200, malformed body) serve the previous cached TLE, or the committed snapshot in `data/issTle.ts` — a TLE fetch failure must **never** produce a 500 or block `/api/bodies`. Retry no sooner than 30 min after a failure. The committed snapshot keeps the app fully functional offline (orbit shape exact, phase stale — accepted).
 
 **Parsing (`parseTle(line1, line2)`)** — 1-indexed fixed columns:
 

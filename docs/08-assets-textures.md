@@ -2,7 +2,7 @@
 
 ## Policy
 
-The app is **fully standalone**: every texture is downloaded once at development time, committed to git, and served from `apps/frontend/public/textures/`. At runtime the app must make **zero** requests to third-party hosts. Never load a texture from a CDN URL.
+The app is **fully standalone**: every texture is downloaded once at development time, committed to git, and served from `packages/frontend/public/textures/`. At runtime the app must make **zero** requests to third-party hosts. Never load a texture from a CDN URL.
 
 ## Source & license
 
@@ -43,7 +43,7 @@ Budget: 13 auto-fetched files (Solar System Scope) + 2 manual files (Pluto/Charo
 Plain Node 24 (built-in `fetch`), no dependencies:
 
 - Hardcode the manifest above as `[{ file, url }]`.
-- `mkdir -p apps/frontend/public/textures` (`fs.mkdirSync(..., { recursive: true })`).
+- `mkdir -p packages/frontend/public/textures` (`fs.mkdirSync(..., { recursive: true })`).
 - For each entry: skip if the file already exists with size > 10 kB (idempotent); otherwise fetch, check `res.ok` and `content-type` starts with `image/`, write with `fs.writeFileSync(path, Buffer.from(await res.arrayBuffer()))`.
 - Print a per-file ✓/✗ summary; `process.exit(1)` if any file failed.
 - Run via root script: `pnpm download-textures` (doc 01). Run it **once** during story S6, then commit the files.
@@ -75,11 +75,11 @@ export async function preloadTextures(): Promise<Map<string, THREE.Texture>> {
 - Called during app boot **in parallel** with the API fetch (doc 04 boot sequence); the scene is only built once both resolve.
 - **colorSpace.** Every color map is `SRGBColorSpace` (the default). The one exception is `earth-clouds` (S29): it is used as an **`alphaMap`** (data, not color), so it loads with `THREE.NoColorSpace` — sRGB would skew its midtone alpha (doc 05, "Earth cloud layer").
 - A missing texture is non-fatal: the body falls back to flat color (`map` absent ⇒ use `color` — doc 05). A missing `earth-night` entry is also non-fatal: Earth simply renders without city lights (doc 05, "Earth night lights"). A missing `earth-clouds` entry is non-fatal too: Earth renders without the cloud layer (doc 05, "Earth cloud layer").
-- `.gitignore` must **not** exclude `public/textures`. Add a `apps/frontend/public/textures/.gitkeep` in S1 so the folder exists before S6.
+- `.gitignore` must **not** exclude `public/textures`. Add a `packages/frontend/public/textures/.gitkeep` in S1 so the folder exists before S6.
 
 ## ISS model — `public/models/iss.glb` (S24)
 
-Same standalone policy as the textures: the model is downloaded **once at development time**, committed, and served from `apps/frontend/public/models/`. Zero third-party requests at runtime.
+Same standalone policy as the textures: the model is downloaded **once at development time**, committed, and served from `packages/frontend/public/models/`. Zero third-party requests at runtime.
 
 - **Format**: a single self-contained `.glb` (binary glTF, textures embedded if any).
 - **Budget**: ≤ **15 000 triangles** and ≤ **2 MB** — it must render smoothly on mobile and on low-end GPUs (the bloom pass already costs a full-screen pass). Prefer a single material; no animations, no skinning.
@@ -89,7 +89,7 @@ Same standalone policy as the textures: the model is downloaded **once at develo
   - URL: `https://solarsystem.nasa.gov/gltf_embed/2378/` (embedded viewer page) — direct asset: `https://solarsystem.nasa.gov/rails/active_storage/blobs/redirect/…/ISS_stationary.glb`
   - Author: NASA (Solar System Exploration)
   - License: **U.S. Government Work — public domain** (17 U.S.C. § 105)
-  - File committed: `apps/frontend/public/models/iss.glb` — optimized with `gltf-transform optimize --texture-compress webp --texture-size 128` (original 43 MB → 2.7 MB)
+  - File committed: `packages/frontend/public/models/iss.glb` — optimized with `gltf-transform optimize --texture-compress webp --texture-size 128` (original 43 MB → 2.7 MB)
   - No attribution required by the license; the NASA credit is noted here for provenance.
 - **Download**: manual (one file, no script change). `.gitignore` must not exclude `public/models/`.
 - **Loading**: preloaded at boot alongside the textures via `GLTFLoader` (`three/examples/jsm/loaders/GLTFLoader` — bundled with three, **not a new dependency**), same `Promise.all`, same graceful-fallback policy: a missing/corrupt GLB → `console.warn`, the ISS renders as the S23 flat-color sphere, no crash. Scaling and `userData.bodyId` rules in doc 05 ("Satellites in the scene graph").

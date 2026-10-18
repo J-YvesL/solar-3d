@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 
-const TEXTURES_DIR = "apps/frontend/public/textures";
+const TEXTURES_DIR = "packages/frontend/public/textures";
 
 const MANIFEST = [
   { file: "sun.jpg", url: "https://www.solarsystemscope.com/textures/download/2k_sun.jpg" },

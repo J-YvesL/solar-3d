@@ -19,7 +19,7 @@ flowchart LR
 ## File layout
 
 ```
-apps/frontend/src/
+packages/frontend/src/
 ├── main.tsx                 # ReactDOM.createRoot(...).render(<App />)
 ├── api/
 │   └── client.ts            # fetchBodies(lang): Promise<BodiesResponse> ; throws ApiError on !ok (lang: doc 09)

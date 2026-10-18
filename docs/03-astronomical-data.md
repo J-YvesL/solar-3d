@@ -1,6 +1,6 @@
 # 03 — Astronomical Data (single source of truth)
 
-Every number and every info text used in the project comes from this document. **Never invent, round differently, or "improve" a value** — copy these tables verbatim into `apps/backend/src/data/`.
+Every number and every info text used in the project comes from this document. **Never invent, round differently, or "improve" a value** — copy these tables verbatim into `packages/backend/src/data/`.
 
 ## Conventions (read first)
 
@@ -106,7 +106,7 @@ For moons, set `axialTiltDeg = 0` and `eccentricity = 0` in the data (circular a
 
 Each body's `info` object has exactly three string fields: `description`, `composition`, `funFact`. Copy these texts verbatim.
 
-> **i18n (v2, S19).** This table is the **canonical English** content. The fr/es/it/de versions are faithful translations living only in `apps/backend/src/data/localized/<lang>.ts` — rules, localized body names and the API `?lang=` contract are in doc 09. If a text below changes, all four translations must be updated in the same commit.
+> **i18n (v2, S19).** This table is the **canonical English** content. The fr/es/it/de versions are faithful translations living only in `packages/backend/src/data/localized/<lang>.ts` — rules, localized body names and the API `?lang=` contract are in doc 09. If a text below changes, all four translations must be updated in the same commit.
 
 | id | description | composition | funFact |
 |---|---|---|---|
@@ -207,7 +207,7 @@ Notes:
 
 ## How this maps to backend files
 
-Split into three files in `apps/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
+Split into three files in `packages/backend/src/data/` (see doc 02 for the exact TypeScript shapes):
 
 - `keplerianElements.ts` — Table 1 (planets only).
 - `bodies.ts` — Tables 2 + 2b + 3 + 7 merged: one record per body (32 records) with physical data, moon/dwarf-planet orbital data, parent links, colors, plus `rotationAtJ2000Deg` from Table 5 (0 for the 20 unlisted moons) and `poleEclipticLonDeg` from Table 6 (0 for the 21 moons and the iss). Pluto (Table 2b) is a `dwarfPlanet` carrying `meanLongitudeAtJ2000Deg` like a moon (positioned by Formula C).

@@ -52,13 +52,13 @@ Root `.prettierrc`: `{ "printWidth": 100, "singleQuote": false, "trailingComma":
 ## Tests (Vitest)
 
 - Test files: `*.test.ts` colocated next to the source file.
-- What must be tested: everything in `apps/backend/src/ephemeris` and `src/data` and `src/routes` (doc 02 lists the cases), everything in `apps/frontend/src/domain` (scaling, model, clock).
+- What must be tested: everything in `packages/backend/src/ephemeris` and `src/data` and `src/routes` (doc 02 lists the cases), everything in `packages/frontend/src/domain` (scaling, model, clock).
 - What must NOT be tested: anything in `frontend/src/three` or `src/react` (WebGL/DOM out of scope — manual checks in the BACKLOG cover them). Do not install jsdom, testing-library, or playwright.
 - Numeric assertions use explicit tolerances: `expect(x).toBeCloseTo(100.380, 2)`.
 
 ## Logging (backend)
 
-Use `createLogger(component)` from `apps/backend/src/logger.ts` (Winston 3). One logger per module, created at module scope.
+Use `createLogger(component)` from `packages/backend/src/logger.ts` (Winston 3). One logger per module, created at module scope.
 
 ```ts
 const logger = createLogger("my-component");
@@ -74,7 +74,7 @@ Default level is `info`; set `LOG_LEVEL=debug` in the environment to see `debug`
 ## Git
 
 - Commit after each backlog story, message: `S<n>: <imperative summary>` (e.g. `S4: kepler ephemeris + /api/bodies endpoint`).
-- Never commit `node_modules`, `dist`. **Do commit** `apps/frontend/public/textures/` (doc 08).
+- Never commit `node_modules`, `dist`. **Do commit** `packages/frontend/public/textures/` (doc 08).
 
 ## Definition of done (every story)
 

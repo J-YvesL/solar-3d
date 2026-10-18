@@ -2,7 +2,7 @@
 
 ## Monorepo layout
 
-pnpm workspace with two apps and one shared package:
+pnpm workspace with three packages under `packages/` — two apps and one shared library:
 
 ```
 solar-3d/
@@ -11,17 +11,16 @@ solar-3d/
 ├── package.json              # root: scripts + devDeps shared tooling
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json        # shared compiler options, packages extend it
-├── .gitignore                # node_modules, dist, .env — do NOT ignore apps/frontend/public/textures
+├── .gitignore                # node_modules, dist, .env — do NOT ignore packages/frontend/public/textures
 ├── scripts/
 │   └── download-textures.mjs # one-shot dev script (see doc 08)
-├── packages/
-│   └── shared/               # @solar/shared — API DTO types only (zero runtime code)
-│       ├── package.json
-│       ├── tsconfig.json
-│       └── src/
-│           ├── index.ts
-│           └── bodies.ts     # BodyDto, BodiesResponse, BodyType…
-└── apps/
+└── packages/
+    ├── shared/               # @solar/shared — API DTO types only (zero runtime code)
+    │   ├── package.json
+    │   ├── tsconfig.json
+    │   └── src/
+    │       ├── index.ts
+    │       └── bodies.ts     # BodyDto, BodiesResponse, BodyType…
     ├── backend/              # @solar/backend — Express API
     │   ├── package.json
     │   ├── tsconfig.json
@@ -39,7 +38,6 @@ solar-3d/
 
 ```yaml
 packages:
-  - "apps/*"
   - "packages/*"
 ```
 
@@ -48,8 +46,8 @@ packages:
 | Package | Name | Depends on |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | — (types only, no runtime deps) |
-| `apps/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `express`, `cors`, `winston` |
-| `apps/frontend` | `@solar/frontend` | `@solar/shared` (workspace:\*), `react`, `react-dom`, `three` |
+| `packages/backend` | `@solar/backend` | `@solar/shared` (workspace:\*), `express`, `cors`, `winston` |
+| `packages/frontend` | `@solar/frontend` | `@solar/shared` (workspace:\*), `react`, `react-dom`, `three` |
 
 `@solar/shared` is consumed **as TypeScript source** (its `main`/`exports` points to `src/index.ts`). No build step for it; both apps' bundler/runtime compile it. This avoids build-order problems for a POC.
 
@@ -92,7 +90,7 @@ packages:
 - Vite proxies `/api` → `http://localhost:3001` so the frontend always calls relative `/api/bodies`:
 
 ```ts
-// apps/frontend/vite.config.ts
+// packages/frontend/vite.config.ts
 export default defineConfig({
   plugins: [react()],
   server: { proxy: { "/api": "http://localhost:3001" } },

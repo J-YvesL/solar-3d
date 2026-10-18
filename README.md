@@ -19,7 +19,7 @@ frontend animates everything forward from there.
 
 ```bash
 pnpm install
-pnpm download-textures   # one-shot: downloads the 11 texture files into apps/frontend/public/textures
+pnpm download-textures   # one-shot: downloads the 11 texture files into packages/frontend/public/textures
 pnpm dev                 # backend on :3001, frontend on :5173 (proxies /api → 3001)
 ```
 
@@ -38,8 +38,8 @@ pnpm typecheck   # tsc --noEmit, all packages
 | Path | Package | Contents |
 |---|---|---|
 | `packages/shared` | `@solar/shared` | Shared API DTO types |
-| `apps/backend` | `@solar/backend` | Express API, `/api/bodies`, Kepler ephemeris |
-| `apps/frontend` | `@solar/frontend` | Vite + React + Three.js (layers: domain / three / api / react) |
+| `packages/backend` | `@solar/backend` | Express API, `/api/bodies`, Kepler ephemeris |
+| `packages/frontend` | `@solar/frontend` | Vite + React + Three.js (layers: domain / three / api / react) |
 
 The full written specification lives in [docs/](docs/).
 
