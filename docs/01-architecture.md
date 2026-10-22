@@ -75,7 +75,7 @@ packages:
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node | 24 (≥ 24.0.0) | use built-in `fetch` in scripts; add `"engines": { "node": ">=24" }` to the root package.json |
+| Node | 24 (≥ 24.22.1) | use built-in `fetch` in scripts; add `"engines": { "node": ">=24.22.1" }` to the root package.json (24.22.1 fixes the October 2026 security release, incl. CVE-2026-111497) |
 | pnpm | ≥ 9 | |
 | TypeScript | ^5.x | `strict: true` everywhere (doc 07) |
 | Vite | ^5.x | frontend dev server + build |
